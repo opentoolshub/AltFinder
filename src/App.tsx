@@ -36,6 +36,11 @@ interface ClipboardState {
   operation: 'copy' | 'cut' | null
 }
 
+interface FinderFavorite {
+  name: string
+  path: string
+}
+
 import PathBar from './components/PathBar'
 import Toolbar from './components/Toolbar'
 import FileList from './components/FileList'
@@ -55,6 +60,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [clipboard, setClipboard] = useState<ClipboardState>({ files: [], operation: null })
   const [specialPaths, setSpecialPaths] = useState<SpecialPaths | null>(null)
+  const [finderFavorites, setFinderFavorites] = useState<FinderFavorite[]>([])
+  const [favoritesLoading, setFavoritesLoading] = useState(true)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileInfo | null } | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [creatingFolder, setCreatingFolder] = useState(false)
@@ -73,12 +80,21 @@ function App() {
         const paths = await window.electron.getSpecialPaths()
         console.log('Special paths:', paths)
         setSpecialPaths(paths)
+
+        // Load Finder favorites
+        console.log('Loading Finder favorites...')
+        const favorites = await window.electron.getFinderFavorites()
+        console.log('Finder favorites:', favorites)
+        setFinderFavorites(favorites)
+        setFavoritesLoading(false)
+
         const hidden = await window.electron.getShowHiddenFiles()
         setShowHiddenFiles(hidden)
         navigateTo(paths.home, true)
       } catch (err) {
         console.error('Init error:', err)
         setError(err instanceof Error ? err.message : String(err))
+        setFavoritesLoading(false)
       }
     }
     init()
@@ -106,6 +122,21 @@ function App() {
       unsubHidden()
     }
   }, [history, historyIndex, currentPath])
+
+  // Listen for favorites changes (file watch + window focus)
+  useEffect(() => {
+    if (!window.electron) return
+
+    const unsubFavorites = window.electron.onFavoritesChanged(async () => {
+      console.log('Reloading Finder favorites...')
+      const favorites = await window.electron.getFinderFavorites()
+      setFinderFavorites(favorites)
+    })
+
+    return () => {
+      unsubFavorites()
+    }
+  }, [])
 
   // Load directory when path or showHiddenFiles changes
   useEffect(() => {
@@ -398,9 +429,10 @@ function App() {
     <div className="flex h-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">
       {/* Sidebar */}
       <Sidebar
-        specialPaths={specialPaths}
+        favorites={finderFavorites}
         currentPath={currentPath}
         onNavigate={navigateTo}
+        loading={favoritesLoading}
       />
 
       {/* Main content */}

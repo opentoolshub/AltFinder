@@ -43,6 +43,10 @@ const electronAPI = {
   setShowHiddenFiles: (value) =>
     ipcRenderer.invoke('settings:setShowHiddenFiles', value),
 
+  // Finder favorites
+  getFinderFavorites: () =>
+    ipcRenderer.invoke('fs:getFinderFavorites'),
+
   // Event listeners
   onNavBack: (callback) => {
     ipcRenderer.on('nav:back', callback)
@@ -69,6 +73,10 @@ const electronAPI = {
     const handler = (_, value) => callback(value)
     ipcRenderer.on('settings:showHiddenFiles', handler)
     return () => ipcRenderer.removeListener('settings:showHiddenFiles', handler)
+  },
+  onFavoritesChanged: (callback) => {
+    ipcRenderer.on('favorites:changed', callback)
+    return () => ipcRenderer.removeListener('favorites:changed', callback)
   }
 }
 

@@ -1,9 +1,11 @@
 import { app, BrowserWindow, ipcMain, shell, Menu, nativeImage } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
-import { existsSync, statSync } from 'fs'
+import { existsSync, statSync, watch } from 'fs'
+import { execSync } from 'child_process'
 import Store from 'electron-store'
 import { fileURLToPath } from 'url'
+import { homedir } from 'os'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -308,10 +310,13 @@ function createMenu() {
 app.whenReady().then(() => {
   createMenu()
   createWindow()
+  setupFavoritesWatcher()
+  setupFocusHandler()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+      setupFocusHandler()
     }
   })
 })
@@ -443,3 +448,63 @@ ipcMain.handle('settings:getShowHiddenFiles', () => store.get('showHiddenFiles')
 ipcMain.handle('settings:setShowHiddenFiles', (_, value: boolean) => {
   store.set('showHiddenFiles', value)
 })
+
+// Finder favorites
+function getFinderFavorites(): { name: string; path: string }[] {
+  try {
+    const scriptPath = path.join(__dirname, '../scripts/read-finder-favorites.swift')
+    if (!existsSync(scriptPath)) {
+      return []
+    }
+    const output = execSync(`swift "${scriptPath}"`, { encoding: 'utf-8', timeout: 5000 })
+    const favorites = JSON.parse(output)
+    // Filter out empty entries and special items
+    return favorites.filter((f: { name: string; path: string }) =>
+      f.name && f.path && !f.path.includes('.cannedSearch')
+    )
+  } catch (error) {
+    console.error('Failed to read Finder favorites:', error)
+    return []
+  }
+}
+
+ipcMain.handle('fs:getFinderFavorites', async () => {
+  return getFinderFavorites()
+})
+
+// Watch Finder favorites file for changes
+const favoritesFilePath = path.join(
+  homedir(),
+  'Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.FavoriteItems.sfl3'
+)
+
+let favoritesWatcher: ReturnType<typeof watch> | null = null
+
+function setupFavoritesWatcher() {
+  if (favoritesWatcher) return
+
+  try {
+    const favoritesDir = path.dirname(favoritesFilePath)
+    if (existsSync(favoritesDir)) {
+      favoritesWatcher = watch(favoritesDir, (eventType, filename) => {
+        if (filename && filename.includes('FavoriteItems')) {
+          console.log('Finder favorites changed, notifying renderer...')
+          mainWindow?.webContents.send('favorites:changed')
+        }
+      })
+      console.log('Watching Finder favorites for changes')
+    }
+  } catch (error) {
+    console.error('Failed to watch Finder favorites:', error)
+  }
+}
+
+// Reload favorites when window gains focus
+function setupFocusHandler() {
+  if (mainWindow) {
+    mainWindow.on('focus', () => {
+      console.log('Window focused, sending favorites refresh signal')
+      mainWindow?.webContents.send('favorites:changed')
+    })
+  }
+}
