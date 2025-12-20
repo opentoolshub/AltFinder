@@ -1,6 +1,24 @@
 import { useState, useRef, useEffect } from 'react'
-import { FileInfo, SortConfig } from '../types'
 import FileRow from './FileRow'
+
+interface FileInfo {
+  name: string
+  path: string
+  isDirectory: boolean
+  size: number
+  modifiedTime: number
+  createdTime: number
+  kind: string
+  extension: string
+}
+
+type SortField = 'name' | 'modifiedTime' | 'createdTime' | 'size' | 'kind'
+type SortDirection = 'asc' | 'desc'
+
+interface SortConfig {
+  field: SortField
+  direction: SortDirection
+}
 
 interface FileListProps {
   files: FileInfo[]

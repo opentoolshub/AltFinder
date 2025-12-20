@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, dialog, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, nativeImage } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
 import { existsSync, statSync } from 'fs'
@@ -6,6 +6,9 @@ import Store from 'electron-store'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Set app name
+app.name = 'AltFinder'
 
 interface FileInfo {
   name: string
@@ -122,6 +125,13 @@ async function readDirectory(dirPath: string, showHidden: boolean): Promise<File
 function createWindow() {
   const bounds = store.get('windowBounds')
 
+  // Create app icon
+  const iconPath = path.join(__dirname, '../public/icon.png')
+  let icon = undefined
+  if (existsSync(iconPath)) {
+    icon = nativeImage.createFromPath(iconPath)
+  }
+
   mainWindow = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
@@ -129,9 +139,11 @@ function createWindow() {
     y: bounds.y,
     minWidth: 600,
     minHeight: 400,
+    title: 'AltFinder',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
     vibrancy: 'sidebar',
+    icon: icon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -154,6 +166,14 @@ function createWindow() {
       const [x, y] = mainWindow.getPosition()
       store.set('windowBounds', { width, height, x, y })
     }
+  })
+
+  // Log renderer console to terminal
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    const levels = ['DEBUG', 'INFO', 'WARN', 'ERROR']
+    const levelName = levels[level] || 'LOG'
+    const source = sourceId ? sourceId.split('/').pop() : 'unknown'
+    console.log(`[Renderer ${levelName}] ${source}:${line} - ${message}`)
   })
 
   if (process.env.VITE_DEV_SERVER_URL) {

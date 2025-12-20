@@ -1,12 +1,48 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { FileInfo, SortConfig, ClipboardState, SpecialPaths } from './types'
 import Sidebar from './components/Sidebar'
+
+interface FileInfo {
+  name: string
+  path: string
+  isDirectory: boolean
+  size: number
+  modifiedTime: number
+  createdTime: number
+  kind: string
+  extension: string
+}
+
+interface SpecialPaths {
+  home: string
+  desktop: string
+  documents: string
+  downloads: string
+  music: string
+  pictures: string
+  videos: string
+  applications: string
+}
+
+type SortField = 'name' | 'modifiedTime' | 'createdTime' | 'size' | 'kind'
+type SortDirection = 'asc' | 'desc'
+
+interface SortConfig {
+  field: SortField
+  direction: SortDirection
+}
+
+interface ClipboardState {
+  files: string[]
+  operation: 'copy' | 'cut' | null
+}
+
 import PathBar from './components/PathBar'
 import Toolbar from './components/Toolbar'
 import FileList from './components/FileList'
 import ContextMenu from './components/ContextMenu'
 
 function App() {
+  const [error, setError] = useState<string | null>(null)
   const [currentPath, setCurrentPath] = useState<string>('')
   const [files, setFiles] = useState<FileInfo[]>([])
   const [pinnedFiles, setPinnedFiles] = useState<FileInfo[]>([])
@@ -28,17 +64,30 @@ function App() {
   // Initialize
   useEffect(() => {
     const init = async () => {
-      const paths = await window.electron.getSpecialPaths()
-      setSpecialPaths(paths)
-      const hidden = await window.electron.getShowHiddenFiles()
-      setShowHiddenFiles(hidden)
-      navigateTo(paths.home, true)
+      try {
+        console.log('Initializing app...')
+        if (!window.electron) {
+          throw new Error('Electron API not available - preload script may not have loaded')
+        }
+        console.log('Getting special paths...')
+        const paths = await window.electron.getSpecialPaths()
+        console.log('Special paths:', paths)
+        setSpecialPaths(paths)
+        const hidden = await window.electron.getShowHiddenFiles()
+        setShowHiddenFiles(hidden)
+        navigateTo(paths.home, true)
+      } catch (err) {
+        console.error('Init error:', err)
+        setError(err instanceof Error ? err.message : String(err))
+      }
     }
     init()
   }, [])
 
   // Listen for menu events
   useEffect(() => {
+    if (!window.electron) return
+
     const unsubBack = window.electron.onNavBack(() => goBack())
     const unsubForward = window.electron.onNavForward(() => goForward())
     const unsubUp = window.electron.onNavUp(() => goUp())
@@ -66,6 +115,7 @@ function App() {
   }, [currentPath, showHiddenFiles])
 
   const loadDirectory = async (dirPath: string) => {
+    if (!window.electron) return
     setLoading(true)
     try {
       const allFiles = await window.electron.readDirectory(dirPath, showHiddenFiles)
@@ -326,6 +376,23 @@ function App() {
     if (searchQuery && !f.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   })
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-8">
+        <div className="text-center">
+          <h1 className="text-xl font-bold mb-2">Error</h1>
+          <p className="mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Reload
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">

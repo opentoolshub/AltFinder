@@ -1,5 +1,15 @@
 import { useEffect, useRef } from 'react'
-import { FileInfo } from '../types'
+
+interface FileInfo {
+  name: string
+  path: string
+  isDirectory: boolean
+  size: number
+  modifiedTime: number
+  createdTime: number
+  kind: string
+  extension: string
+}
 
 interface ContextMenuProps {
   x: number

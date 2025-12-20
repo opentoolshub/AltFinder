@@ -1,4 +1,13 @@
-import { SpecialPaths } from '../types'
+interface SpecialPaths {
+  home: string
+  desktop: string
+  documents: string
+  downloads: string
+  music: string
+  pictures: string
+  videos: string
+  applications: string
+}
 
 interface SidebarProps {
   specialPaths: SpecialPaths | null

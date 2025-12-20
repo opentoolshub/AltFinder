@@ -19,7 +19,7 @@ export default defineConfig({
         }
       },
       {
-        entry: 'electron/preload.ts',
+        entry: 'electron/preload.js',
         onstart(options) {
           options.reload()
         },
