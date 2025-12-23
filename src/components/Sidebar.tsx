@@ -126,10 +126,19 @@ const PinnedIcon = () => (
 
 export default function Sidebar({ favorites = [], currentPath, onNavigate, loading, homePath, isAllPinnedView, onShowAllPinned }: SidebarProps) {
 
-  if (loading || !favorites) {
+  if (loading) {
     return (
-      <div className="w-56 bg-neutral-100/60 dark:bg-[#1e1e1e]/50 border-r border-neutral-200/60 dark:border-white/5 pt-12 flex-shrink-0 backdrop-blur-xl">
-        <div className="px-4 py-2 text-[13px] text-neutral-400">Loading...</div>
+      <div className="w-56 bg-neutral-100/60 dark:bg-[#1e1e1e]/50 border-r border-neutral-200/60 dark:border-white/5 flex-shrink-0 backdrop-blur-xl flex flex-col">
+        <div className="h-12 w-full drag-region flex-shrink-0" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-2 text-neutral-400 dark:text-neutral-500">
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span className="text-[13px]">Loading...</span>
+          </div>
+        </div>
       </div>
     )
   }
