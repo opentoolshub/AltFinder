@@ -117,7 +117,7 @@ export default function FileList({
     }
   }
 
-  const gridClass = "grid grid-cols-[1fr] md:grid-cols-[minmax(200px,1fr)_160px] lg:grid-cols-[minmax(200px,1fr)_160px_100px] xl:grid-cols-[minmax(200px,1fr)_160px_100px_120px] gap-4 px-4 items-center"
+  const gridClass = "grid w-full grid-cols-[1fr] md:grid-cols-[minmax(200px,1fr)_160px] lg:grid-cols-[minmax(200px,1fr)_160px_100px] xl:grid-cols-[minmax(200px,1fr)_160px_100px_120px] gap-4 px-4 items-center"
 
   if (loading) {
     return (
