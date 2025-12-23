@@ -26,6 +26,7 @@ interface ContextMenuProps {
   onDelete: () => void
   onRename: () => void
   onShowInFinder: () => void
+  onShowInAltFinder: () => void
   onNewFolder: () => void
   onCopyPath: () => void
   onOpenTerminal: () => void
@@ -54,6 +55,7 @@ export default function ContextMenu({
   onDelete,
   onRename,
   onShowInFinder,
+  onShowInAltFinder,
   onNewFolder,
   onCopyPath,
   onOpenTerminal
@@ -118,7 +120,8 @@ export default function ContextMenu({
         { label: 'Rename', action: onRename },
         { label: 'Move to Trash', shortcut: 'Cmd+Del', action: onDelete },
         { label: '', action: () => {}, divider: true },
-        { label: 'Show in Finder', action: onShowInFinder },
+        { label: 'Reveal in AltFinder', action: onShowInAltFinder },
+        { label: 'Reveal in Finder', action: onShowInFinder },
       ]
     : [
         { label: 'New Folder', shortcut: 'Cmd+Shift+N', action: onNewFolder },

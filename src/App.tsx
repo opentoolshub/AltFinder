@@ -586,6 +586,17 @@ function App() {
             }
             closeContextMenu()
           }}
+          onShowInAltFinder={() => {
+            if (contextMenu.file) {
+              const parentPath = contextMenu.file.path.split('/').slice(0, -1).join('/') || '/'
+              navigateTo(parentPath)
+              // Select the file after navigation
+              setTimeout(() => {
+                setSelectedFiles(new Set([contextMenu.file!.path]))
+              }, 100)
+            }
+            closeContextMenu()
+          }}
           onNewFolder={() => {
             setCreatingFolder(true)
             closeContextMenu()
