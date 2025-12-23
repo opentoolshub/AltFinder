@@ -60,6 +60,9 @@ function App() {
   const [allPinnedFiles, setAllPinnedFiles] = useState<{ file: FileInfo; sourceDir: string }[]>([])
   const fileListRef = useRef<HTMLDivElement>(null)
   const loadIdRef = useRef<number>(0) // Track current load to cancel stale loads
+  const directoryCacheRef = useRef<Map<string, { files: FileInfo[]; pins: string[]; timestamp: number }>>(new Map()) // Cache recent directories
+  const CACHE_MAX_SIZE = 20
+  const CACHE_TTL = 30000 // 30 seconds
 
   // Load favorites with error handling
   const loadFavorites = useCallback(async () => {
@@ -165,6 +168,20 @@ function App() {
     const thisLoadId = ++loadIdRef.current
 
     setLoadingMore(false)
+
+    // Check cache for instant display
+    const cache = directoryCacheRef.current
+    const cached = cache.get(dirPath)
+    const now = Date.now()
+    if (cached && (now - cached.timestamp) < CACHE_TTL) {
+      // Show cached content immediately - no spinner!
+      setFiles(cached.files)
+      setTotalItems(cached.files.length)
+      setPinnedPaths(cached.pins)
+      setLoading(false)
+      // Continue to refresh in background (don't return)
+    }
+
     try {
       // FAST: Load first batch of files (no stat), sort config, and pinned paths in parallel
       const INITIAL_LIMIT = 200
@@ -239,6 +256,18 @@ function App() {
 
         if (thisLoadId === loadIdRef.current) {
           setLoadingMore(false)
+
+          // Update cache with fully loaded files
+          setFiles(currentFiles => {
+            // Save to cache
+            cache.set(dirPath, { files: currentFiles, pins, timestamp: Date.now() })
+            // Evict old entries if cache is too large
+            if (cache.size > CACHE_MAX_SIZE) {
+              const oldestKey = cache.keys().next().value
+              if (oldestKey) cache.delete(oldestKey)
+            }
+            return currentFiles
+          })
         }
       }
     } catch (error) {
