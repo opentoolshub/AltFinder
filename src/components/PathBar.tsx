@@ -87,6 +87,14 @@ export default function PathBar({ path, onNavigate }: PathBarProps) {
     setContextMenu({ x: e.clientX, y: e.clientY, path: segmentPath })
   }
 
+  const commitEdit = () => {
+    const trimmed = editValue.trim()
+    if (trimmed && trimmed !== path) {
+      onNavigate(trimmed)
+    }
+    setIsEditing(false)
+  }
+
   if (isEditing) {
     return (
       <div className="flex items-center gap-2 px-4 py-2 bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-xl border-b border-neutral-200/60 dark:border-white/5">
@@ -96,13 +104,27 @@ export default function PathBar({ path, onNavigate }: PathBarProps) {
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          onBlur={() => {
-            setEditValue(path)
-            setIsEditing(false)
-          }}
+          onBlur={commitEdit}
           className="flex-1 px-2 py-1 text-[13px] bg-white dark:bg-[#2a2a2a] text-neutral-900 dark:text-white border border-[#0A84FF] rounded-md focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/30"
           placeholder="Enter path..."
         />
+        <button
+          onMouseDown={(e) => e.preventDefault()} // Prevent blur before click
+          onClick={commitEdit}
+          className="px-3 py-1 text-[12px] font-medium bg-[#0A84FF] text-white rounded-md hover:bg-[#0077ED] transition-colors"
+        >
+          Go
+        </button>
+        <button
+          onMouseDown={(e) => e.preventDefault()} // Prevent blur before click
+          onClick={() => {
+            setEditValue(path)
+            setIsEditing(false)
+          }}
+          className="px-3 py-1 text-[12px] font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+        >
+          Cancel
+        </button>
       </div>
     )
   }
