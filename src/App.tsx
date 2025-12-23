@@ -530,6 +530,27 @@ function App() {
             onNavigateToFolder={navigateTo}
           />
         </div>
+
+        {/* Status bar */}
+        <div className="h-6 px-4 flex items-center justify-between bg-neutral-50/80 dark:bg-[#1a1a1a]/80 border-t border-neutral-200/60 dark:border-white/5 text-[11px] text-neutral-500 dark:text-neutral-500">
+          {selectedFiles.size > 0 ? (
+            <>
+              <span className="truncate flex-1 mr-4">
+                {Array.from(selectedFiles)[0]}
+              </span>
+              <span className="flex-shrink-0">
+                {selectedFiles.size === 1 ? '1 item selected' : `${selectedFiles.size} items selected`}
+              </span>
+            </>
+          ) : (
+            <span>
+              {isAllPinnedView
+                ? `${allPinnedFiles.length} pinned ${allPinnedFiles.length === 1 ? 'item' : 'items'}`
+                : `${files.length + pinnedFiles.length} ${files.length + pinnedFiles.length === 1 ? 'item' : 'items'}`
+              }
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Context menu */}
