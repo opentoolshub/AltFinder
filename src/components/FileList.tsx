@@ -107,6 +107,7 @@ export default function FileList({
   onNavigateToFolder
 }: FileListProps) {
   const [newFolderName, setNewFolderName] = useState('untitled folder')
+  const [folderContextMenu, setFolderContextMenu] = useState<{ x: number; y: number; path: string } | null>(null)
   const newFolderInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -115,6 +116,15 @@ export default function FileList({
       newFolderInputRef.current.select()
     }
   }, [creatingFolder])
+
+  // Close folder context menu on click outside
+  useEffect(() => {
+    if (folderContextMenu) {
+      const handleClick = () => setFolderContextMenu(null)
+      document.addEventListener('click', handleClick)
+      return () => document.removeEventListener('click', handleClick)
+    }
+  }, [folderContextMenu])
 
   const handleNewFolderKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -143,18 +153,6 @@ export default function FileList({
       </div>
     )
   }
-
-  // State for folder context menu in All Pinned view
-  const [folderContextMenu, setFolderContextMenu] = useState<{ x: number; y: number; path: string } | null>(null)
-
-  // Close folder context menu on click outside
-  useEffect(() => {
-    if (folderContextMenu) {
-      const handleClick = () => setFolderContextMenu(null)
-      document.addEventListener('click', handleClick)
-      return () => document.removeEventListener('click', handleClick)
-    }
-  }, [folderContextMenu])
 
   // All Pinned View
   if (isAllPinnedView) {
