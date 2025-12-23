@@ -27,8 +27,19 @@ interface FileRowProps {
 }
 
 const FolderIcon = () => (
-  <svg className="w-[18px] h-[18px] text-[#007AFF] fill-current drop-shadow-sm" viewBox="0 0 20 20">
-    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+  <svg className="w-[18px] h-[18px] drop-shadow-sm" viewBox="0 0 20 20" fill="none">
+    <defs>
+      <linearGradient id="folderGradientRow" x1="0" y1="0" x2="0" y2="20" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stopColor="#5AC8FA" />
+        <stop offset="1" stopColor="#007AFF" />
+      </linearGradient>
+    </defs>
+    <path 
+      d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" 
+      fill="url(#folderGradientRow)"
+      stroke="rgba(0,0,0,0.1)" 
+      strokeWidth="0.5"
+    />
   </svg>
 )
 
