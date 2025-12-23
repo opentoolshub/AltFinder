@@ -27,7 +27,7 @@ interface FileRowProps {
 }
 
 const FolderIcon = () => (
-  <svg className="w-5 h-5 text-blue-500 fill-current" viewBox="0 0 20 20">
+  <svg className="w-[18px] h-[18px] text-[#007AFF] fill-current drop-shadow-sm" viewBox="0 0 20 20">
     <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
   </svg>
 )
@@ -35,20 +35,20 @@ const FolderIcon = () => (
 const FileIcon = ({ extension }: { extension: string }) => {
   // Color based on file type
   let color = 'text-neutral-400'
-  if (['.js', '.ts', '.jsx', '.tsx'].includes(extension)) color = 'text-yellow-500'
-  else if (['.json', '.xml', '.yaml', '.yml'].includes(extension)) color = 'text-orange-500'
-  else if (['.html', '.htm'].includes(extension)) color = 'text-red-500'
-  else if (['.css', '.scss', '.less'].includes(extension)) color = 'text-blue-500'
-  else if (['.py'].includes(extension)) color = 'text-green-500'
-  else if (['.md', '.txt', '.doc', '.docx'].includes(extension)) color = 'text-neutral-500'
-  else if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'].includes(extension)) color = 'text-pink-500'
-  else if (['.mp3', '.wav', '.m4a'].includes(extension)) color = 'text-purple-500'
-  else if (['.mp4', '.mov', '.avi', '.mkv'].includes(extension)) color = 'text-indigo-500'
-  else if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(extension)) color = 'text-amber-600'
-  else if (['.pdf'].includes(extension)) color = 'text-red-600'
+  if (['.js', '.ts', '.jsx', '.tsx'].includes(extension)) color = 'text-[#F1C40F]'
+  else if (['.json', '.xml', '.yaml', '.yml'].includes(extension)) color = 'text-[#E67E22]'
+  else if (['.html', '.htm'].includes(extension)) color = 'text-[#E74C3C]'
+  else if (['.css', '.scss', '.less'].includes(extension)) color = 'text-[#3498DB]'
+  else if (['.py'].includes(extension)) color = 'text-[#2ECC71]'
+  else if (['.md', '.txt', '.doc', '.docx'].includes(extension)) color = 'text-neutral-400'
+  else if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'].includes(extension)) color = 'text-[#E91E63]'
+  else if (['.mp3', '.wav', '.m4a'].includes(extension)) color = 'text-[#9B59B6]'
+  else if (['.mp4', '.mov', '.avi', '.mkv'].includes(extension)) color = 'text-[#3F51B5]'
+  else if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(extension)) color = 'text-[#D35400]'
+  else if (['.pdf'].includes(extension)) color = 'text-[#C0392B]'
 
   return (
-    <svg className={`w-5 h-5 ${color}`} fill="currentColor" viewBox="0 0 20 20">
+    <svg className={`w-[18px] h-[18px] ${color} fill-current drop-shadow-sm`} viewBox="0 0 20 20">
       <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
     </svg>
   )
