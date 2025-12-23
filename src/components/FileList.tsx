@@ -144,6 +144,18 @@ export default function FileList({
     )
   }
 
+  // State for folder context menu in All Pinned view
+  const [folderContextMenu, setFolderContextMenu] = useState<{ x: number; y: number; path: string } | null>(null)
+
+  // Close folder context menu on click outside
+  useEffect(() => {
+    if (folderContextMenu) {
+      const handleClick = () => setFolderContextMenu(null)
+      document.addEventListener('click', handleClick)
+      return () => document.removeEventListener('click', handleClick)
+    }
+  }, [folderContextMenu])
+
   // All Pinned View
   if (isAllPinnedView) {
     // Group files by source directory
@@ -169,70 +181,118 @@ export default function FileList({
       )
     }
 
+    const handleFolderContextMenu = (e: React.MouseEvent, path: string) => {
+      e.preventDefault()
+      setFolderContextMenu({ x: e.clientX, y: e.clientY, path })
+    }
+
+    const handleCopyFolderPath = () => {
+      if (folderContextMenu) {
+        window.electron.writeTextToClipboard(folderContextMenu.path)
+        setFolderContextMenu(null)
+      }
+    }
+
     return (
-      <div className="w-full min-w-full pb-4">
-        {/* Header */}
-        <div className={`sticky top-0 z-10 py-2.5 bg-white/90 dark:bg-[#151515]/90 backdrop-blur-xl border-b border-neutral-200/80 dark:border-white/5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide ${gridClass}`}>
-          <span className="pl-1">Name</span>
-          <span>Date Modified</span>
-          <span className="text-right">Size</span>
-          <span>Kind</span>
+      <>
+        <div className="w-full min-w-full pb-4">
+          {/* Header */}
+          <div className={`sticky top-0 z-10 py-2.5 bg-white/90 dark:bg-[#151515]/90 backdrop-blur-xl border-b border-neutral-200/80 dark:border-white/5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide ${gridClass}`}>
+            <span className="pl-1">Name</span>
+            <span>Date Modified</span>
+            <span className="text-right">Size</span>
+            <span>Kind</span>
+          </div>
+
+          <div className="pt-1 px-2">
+            {dirPaths.map((dirPath) => {
+              const items = groupedByDir[dirPath]
+              const dirName = dirPath.split('/').pop() || dirPath
+
+              return (
+                <div key={dirPath} className="mb-4">
+                  {/* Directory header */}
+                  <button
+                    onClick={() => onNavigateToFolder?.(dirPath)}
+                    onContextMenu={(e) => handleFolderContextMenu(e, dirPath)}
+                    className="px-4 py-2 text-[11px] font-semibold text-neutral-500 dark:text-neutral-500 uppercase tracking-wide flex items-center gap-2 hover:text-[#0A84FF] transition-colors group w-full text-left"
+                    title={`Go to ${dirPath}`}
+                  >
+                    <svg className="w-3.5 h-3.5 text-[#007AFF] group-hover:text-[#0A84FF]" viewBox="0 0 20 20" fill="none">
+                      <defs>
+                        <linearGradient id={`folderGrad-${dirPath.replace(/\//g, '-')}`} x1="0" y1="0" x2="0" y2="20" gradientUnits="userSpaceOnUse">
+                          <stop offset="0" stopColor="#5AC8FA" />
+                          <stop offset="1" stopColor="#007AFF" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" fill={`url(#folderGrad-${dirPath.replace(/\//g, '-')})`} />
+                    </svg>
+                    <span className="truncate">{dirName}</span>
+                    <span className="text-neutral-400 dark:text-neutral-600 font-normal normal-case">
+                      ({items.length})
+                    </span>
+                    <svg className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+
+                  {/* Files in this directory */}
+                  {items.map(({ file }) => (
+                    <FileRow
+                      key={file.path}
+                      file={file}
+                      isSelected={selectedFiles.has(file.path)}
+                      isPinned={true}
+                      isRenaming={renaming === file.path}
+                      onSelect={onSelect}
+                      onOpen={onOpen}
+                      onContextMenu={onContextMenu}
+                      onRename={onRename}
+                      onCancelRename={onCancelRename}
+                      formatSize={formatFileSize}
+                      formatDate={formatDate}
+                      gridClass={gridClass}
+                    />
+                  ))}
+                </div>
+              )
+            })}
+          </div>
         </div>
 
-        <div className="pt-1 px-2">
-          {dirPaths.map((dirPath) => {
-            const items = groupedByDir[dirPath]
-            const dirName = dirPath.split('/').pop() || dirPath
-
-            return (
-              <div key={dirPath} className="mb-4">
-                {/* Directory header */}
-                <button
-                  onClick={() => onNavigateToFolder?.(dirPath)}
-                  className="px-4 py-2 text-[11px] font-semibold text-neutral-500 dark:text-neutral-500 uppercase tracking-wide flex items-center gap-2 hover:text-[#0A84FF] transition-colors group w-full text-left"
-                  title={`Go to ${dirPath}`}
-                >
-                  <svg className="w-3.5 h-3.5 text-[#007AFF] group-hover:text-[#0A84FF]" viewBox="0 0 20 20" fill="none">
-                    <defs>
-                      <linearGradient id={`folderGrad-${dirPath.replace(/\//g, '-')}`} x1="0" y1="0" x2="0" y2="20" gradientUnits="userSpaceOnUse">
-                        <stop offset="0" stopColor="#5AC8FA" />
-                        <stop offset="1" stopColor="#007AFF" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" fill={`url(#folderGrad-${dirPath.replace(/\//g, '-')})`} />
-                  </svg>
-                  <span className="truncate">{dirName}</span>
-                  <span className="text-neutral-400 dark:text-neutral-600 font-normal normal-case">
-                    ({items.length})
-                  </span>
-                  <svg className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-
-                {/* Files in this directory */}
-                {items.map(({ file }) => (
-                  <FileRow
-                    key={file.path}
-                    file={file}
-                    isSelected={selectedFiles.has(file.path)}
-                    isPinned={true}
-                    isRenaming={renaming === file.path}
-                    onSelect={onSelect}
-                    onOpen={onOpen}
-                    onContextMenu={onContextMenu}
-                    onRename={onRename}
-                    onCancelRename={onCancelRename}
-                    formatSize={formatFileSize}
-                    formatDate={formatDate}
-                    gridClass={gridClass}
-                  />
-                ))}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+        {/* Folder context menu */}
+        {folderContextMenu && (
+          <div
+            className="fixed z-50 min-w-[180px] py-1 bg-white/95 dark:bg-[#2a2a2a]/95 backdrop-blur-2xl rounded-xl shadow-2xl border border-neutral-200/50 dark:border-white/10"
+            style={{ left: folderContextMenu.x, top: folderContextMenu.y }}
+          >
+            <button
+              onClick={() => {
+                onNavigateToFolder?.(folderContextMenu.path)
+                setFolderContextMenu(null)
+              }}
+              className="w-full px-3 py-[6px] mx-1 text-left text-[13px] flex items-center gap-2 transition-all duration-75 rounded-md text-neutral-800 dark:text-neutral-200 hover:bg-[#0A84FF] hover:text-white"
+              style={{ width: 'calc(100% - 8px)' }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              Open Folder
+            </button>
+            <div className="my-1 mx-2 border-t border-neutral-200/60 dark:border-white/10" />
+            <button
+              onClick={handleCopyFolderPath}
+              className="w-full px-3 py-[6px] mx-1 text-left text-[13px] flex items-center gap-2 transition-all duration-75 rounded-md text-neutral-800 dark:text-neutral-200 hover:bg-[#0A84FF] hover:text-white"
+              style={{ width: 'calc(100% - 8px)' }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy Folder Path
+            </button>
+          </div>
+        )}
+      </>
     )
   }
 
