@@ -54,12 +54,18 @@ declare global {
       removePinnedFile: (dirPath: string, filePath: string) => Promise<string[]>
       getShowHiddenFiles: () => Promise<boolean>
       setShowHiddenFiles: (value: boolean) => Promise<void>
+      getSortOrder: (dirPath: string) => Promise<SortConfig>
+      setSortOrder: (dirPath: string, config: SortConfig) => Promise<void>
+      getFinderFavorites: () => Promise<{ name: string; path: string }[]>
       onNavBack: (callback: () => void) => () => void
       onNavForward: (callback: () => void) => () => void
       onNavUp: (callback: () => void) => () => void
       onNavGoto: (callback: (path: string) => void) => () => void
       onNewFolder: (callback: () => void) => () => void
       onShowHiddenFilesChange: (callback: (value: boolean) => void) => () => void
+      onFavoritesChanged: (callback: () => void) => () => void
+      openTerminal: (path: string) => Promise<void>
+      writeTextToClipboard: (text: string) => Promise<void>
     }
   }
 }

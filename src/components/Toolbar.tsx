@@ -34,16 +34,16 @@ export default function Toolbar({
   onSearchChange
 }: ToolbarProps) {
   return (
-    <div className="flex items-center justify-between gap-4 px-3 py-2 bg-neutral-100/80 dark:bg-neutral-800/80 border-b border-neutral-200 dark:border-neutral-700 -webkit-app-region-drag">
+    <div className="h-12 flex items-center justify-between gap-4 px-4 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 drag-region">
       {/* Navigation buttons - drag region excluded */}
-      <div className="flex items-center gap-1 -webkit-app-region-no-drag">
+      <div className="flex items-center gap-1 no-drag">
         <button
           onClick={onBack}
           disabled={!canGoBack}
           className={`p-1.5 rounded-md transition-colors
             ${canGoBack
-              ? 'hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300'
-              : 'text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
+              ? 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
+              : 'text-neutral-300 dark:text-neutral-700 cursor-not-allowed'
             }`}
           title="Go Back (Cmd+[)"
         >
@@ -54,8 +54,8 @@ export default function Toolbar({
           disabled={!canGoForward}
           className={`p-1.5 rounded-md transition-colors
             ${canGoForward
-              ? 'hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300'
-              : 'text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
+              ? 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
+              : 'text-neutral-300 dark:text-neutral-700 cursor-not-allowed'
             }`}
           title="Go Forward (Cmd+])"
         >
@@ -64,9 +64,9 @@ export default function Toolbar({
       </div>
 
       {/* Search bar - drag region excluded */}
-      <div className="flex-1 max-w-xs -webkit-app-region-no-drag">
-        <div className="relative">
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500">
+      <div className="flex-1 max-w-sm no-drag">
+        <div className="relative group">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 group-focus-within:text-blue-500 transition-colors">
             <SearchIcon />
           </span>
           <input
@@ -74,13 +74,10 @@ export default function Toolbar({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search"
-            className="w-full pl-8 pr-3 py-1.5 text-sm bg-white dark:bg-neutral-700 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-9 pr-3 py-1.5 text-sm bg-neutral-100 dark:bg-neutral-800 border-transparent focus:bg-white dark:focus:bg-neutral-900 border focus:border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
           />
         </div>
       </div>
-
-      {/* Spacer for traffic lights on right */}
-      <div className="w-20" />
     </div>
   )
 }

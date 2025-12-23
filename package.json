@@ -1,5 +1,8 @@
 {
   "name": "altfinder",
+  "productName": "AltFinder",
+  "description": "A modern, fast alternative to Finder",
+  "author": "Jacob Cole",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,13 +14,33 @@
     "preview": "vite preview",
     "package": "electron-builder"
   },
+  "build": {
+    "appId": "com.jacobcole.altfinder",
+    "mac": {
+      "icon": "public/icon-512.png",
+      "category": "public.app-category.utilities",
+      "extendInfo": {
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Folder",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "public.folder",
+              "public.directory"
+            ]
+          }
+        ]
+      }
+    }
+  },
   "dependencies": {
-    "electron": "^39.2.7",
     "electron-store": "^11.0.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "electron": "^39.2.7",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^24.10.1",

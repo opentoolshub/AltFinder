@@ -117,12 +117,7 @@ export default function FileList({
     }
   }
 
-  const columns: { key: SortConfig['field']; label: string; width: string }[] = [
-    { key: 'name', label: 'Name', width: 'flex-1 min-w-[200px]' },
-    { key: 'modifiedTime', label: 'Date Modified', width: 'w-40' },
-    { key: 'size', label: 'Size', width: 'w-24 text-right' },
-    { key: 'kind', label: 'Kind', width: 'w-32' },
-  ]
+  const gridClass = "grid grid-cols-[1fr] md:grid-cols-[minmax(200px,1fr)_160px] lg:grid-cols-[minmax(200px,1fr)_160px_100px] xl:grid-cols-[minmax(200px,1fr)_160px_100px_120px] gap-4 px-4 items-center"
 
   if (loading) {
     return (
@@ -133,33 +128,114 @@ export default function FileList({
   }
 
   return (
-    <div className="min-w-fit">
+    <div className="w-full">
       {/* Header */}
-      <div className="flex items-center px-3 py-1.5 bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-700 text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider sticky top-0 z-10">
-        {columns.map((col) => (
-          <button
-            key={col.key}
-            onClick={() => onSort(col.key)}
-            className={`flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 ${col.width} ${col.key === 'size' ? 'justify-end' : ''}`}
-          >
-            {col.label}
-            <SortIcon direction={sortConfig.field === col.key ? sortConfig.direction : null} />
-          </button>
-        ))}
+      <div className={`sticky top-0 z-10 py-2 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800 text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider ${gridClass}`}>
+        <button
+          onClick={() => onSort('name')}
+          className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left"
+        >
+          Name
+          <SortIcon direction={sortConfig.field === 'name' ? sortConfig.direction : null} />
+        </button>
+        <button
+          onClick={() => onSort('modifiedTime')}
+          className="hidden md:flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left"
+        >
+          Date Modified
+          <SortIcon direction={sortConfig.field === 'modifiedTime' ? sortConfig.direction : null} />
+        </button>
+        <button
+          onClick={() => onSort('size')}
+          className="hidden lg:flex items-center justify-end hover:text-neutral-700 dark:hover:text-neutral-200 text-right"
+        >
+          Size
+          <SortIcon direction={sortConfig.field === 'size' ? sortConfig.direction : null} />
+        </button>
+        <button
+          onClick={() => onSort('kind')}
+          className="hidden xl:flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left"
+        >
+          Kind
+          <SortIcon direction={sortConfig.field === 'kind' ? sortConfig.direction : null} />
+        </button>
       </div>
 
-      {/* Pinned section */}
-      {pinnedFiles.length > 0 && (
-        <>
-          <div className="px-3 py-1.5 text-xs font-medium text-neutral-500 dark:text-neutral-400 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
-            Pinned
+      <div className="pb-2">
+        {/* Pinned section */}
+        {pinnedFiles.length > 0 && (
+          <>
+            <div className="px-4 py-2 text-xs font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mt-2">
+              Pinned
+            </div>
+            {pinnedFiles.map((file) => (
+              <FileRow
+                key={file.path}
+                file={file}
+                isSelected={selectedFiles.has(file.path)}
+                isPinned={true}
+                isRenaming={renaming === file.path}
+                onSelect={onSelect}
+                onOpen={onOpen}
+                onContextMenu={onContextMenu}
+                onRename={onRename}
+                onCancelRename={onCancelRename}
+                formatSize={formatFileSize}
+                formatDate={formatDate}
+                gridClass={gridClass}
+              />
+            ))}
+            <div className="my-2 border-b border-neutral-200 dark:border-neutral-800 mx-4" />
+          </>
+        )}
+
+        {/* New folder row */}
+        {creatingFolder && (
+          <div className={`${gridClass} py-1.5`}>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-500">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                </svg>
+              </span>
+              <input
+                ref={newFolderInputRef}
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={handleNewFolderKeyDown}
+                onBlur={() => {
+                  if (newFolderName.trim()) {
+                    onCreateFolder(newFolderName.trim())
+                  } else {
+                    onCancelCreate()
+                  }
+                  setNewFolderName('untitled folder')
+                }}
+                className="flex-1 px-2 py-1 text-sm bg-white dark:bg-neutral-800 border-2 border-blue-500 rounded-md focus:outline-none shadow-sm"
+              />
+            </div>
+            <div className="hidden md:block text-sm text-neutral-400">--</div>
+            <div className="hidden lg:block text-sm text-neutral-400 text-right">--</div>
+            <div className="hidden xl:block text-sm text-neutral-400">Folder</div>
           </div>
-          {pinnedFiles.map((file) => (
+        )}
+
+        {/* Files */}
+        {files.length === 0 && pinnedFiles.length === 0 && !creatingFolder ? (
+          <div className="flex flex-col items-center justify-center h-64 text-neutral-400">
+            <svg className="w-12 h-12 mb-3 text-neutral-300 dark:text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 012 2v5a2 2 0 01-2 2H9a2 2 0 01-2-2v-5a2 2 0 01-2-2z" />
+            </svg>
+            <p>This folder is empty</p>
+          </div>
+        ) : (
+          files.map((file) => (
             <FileRow
               key={file.path}
               file={file}
               isSelected={selectedFiles.has(file.path)}
-              isPinned={true}
+              isPinned={pinnedPaths.includes(file.path)}
               isRenaming={renaming === file.path}
               onSelect={onSelect}
               onOpen={onOpen}
@@ -168,67 +244,11 @@ export default function FileList({
               onCancelRename={onCancelRename}
               formatSize={formatFileSize}
               formatDate={formatDate}
+              gridClass={gridClass}
             />
-          ))}
-          <div className="h-2 border-b border-neutral-200 dark:border-neutral-700" />
-        </>
-      )}
-
-      {/* New folder row */}
-      {creatingFolder && (
-        <div className="flex items-center px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-b border-neutral-200 dark:border-neutral-700">
-          <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-            <span className="text-blue-500">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-              </svg>
-            </span>
-            <input
-              ref={newFolderInputRef}
-              type="text"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={handleNewFolderKeyDown}
-              onBlur={() => {
-                if (newFolderName.trim()) {
-                  onCreateFolder(newFolderName.trim())
-                } else {
-                  onCancelCreate()
-                }
-                setNewFolderName('untitled folder')
-              }}
-              className="flex-1 px-1 py-0.5 text-sm bg-white dark:bg-neutral-700 border border-blue-500 rounded focus:outline-none"
-            />
-          </div>
-          <div className="w-40 text-sm text-neutral-500">--</div>
-          <div className="w-24 text-sm text-neutral-500 text-right">--</div>
-          <div className="w-32 text-sm text-neutral-500">Folder</div>
-        </div>
-      )}
-
-      {/* Files */}
-      {files.length === 0 && pinnedFiles.length === 0 && !creatingFolder ? (
-        <div className="flex items-center justify-center h-32 text-neutral-500">
-          This folder is empty
-        </div>
-      ) : (
-        files.map((file) => (
-          <FileRow
-            key={file.path}
-            file={file}
-            isSelected={selectedFiles.has(file.path)}
-            isPinned={pinnedPaths.includes(file.path)}
-            isRenaming={renaming === file.path}
-            onSelect={onSelect}
-            onOpen={onOpen}
-            onContextMenu={onContextMenu}
-            onRename={onRename}
-            onCancelRename={onCancelRename}
-            formatSize={formatFileSize}
-            formatDate={formatDate}
-          />
-        ))
-      )}
+          ))
+        )}
+      </div>
     </div>
   )
 }

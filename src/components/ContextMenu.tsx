@@ -27,6 +27,8 @@ interface ContextMenuProps {
   onRename: () => void
   onShowInFinder: () => void
   onNewFolder: () => void
+  onCopyPath: () => void
+  onOpenTerminal: () => void
 }
 
 interface MenuItem {
@@ -52,7 +54,9 @@ export default function ContextMenu({
   onDelete,
   onRename,
   onShowInFinder,
-  onNewFolder
+  onNewFolder,
+  onCopyPath,
+  onOpenTerminal
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -103,11 +107,13 @@ export default function ContextMenu({
   const items: MenuItem[] = file
     ? [
         { label: 'Open', action: onOpen },
+        { label: 'Open in Terminal', action: onOpenTerminal },
         { label: isPinned ? 'Unpin' : 'Pin to Top', action: onPin },
         { label: '', action: () => {}, divider: true },
         { label: 'Copy', shortcut: 'Cmd+C', action: onCopy },
         { label: 'Cut', shortcut: 'Cmd+X', action: onCut },
         { label: 'Paste', shortcut: 'Cmd+V', action: onPaste, disabled: !hasClipboard },
+        { label: 'Copy Path', action: onCopyPath },
         { label: '', action: () => {}, divider: true },
         { label: 'Rename', action: onRename },
         { label: 'Move to Trash', shortcut: 'Cmd+Del', action: onDelete },
@@ -116,8 +122,10 @@ export default function ContextMenu({
       ]
     : [
         { label: 'New Folder', shortcut: 'Cmd+Shift+N', action: onNewFolder },
+        { label: 'Open Terminal Here', action: onOpenTerminal },
         { label: '', action: () => {}, divider: true },
         { label: 'Paste', shortcut: 'Cmd+V', action: onPaste, disabled: !hasClipboard },
+        { label: 'Copy Current Path', action: onCopyPath },
       ]
 
   return (

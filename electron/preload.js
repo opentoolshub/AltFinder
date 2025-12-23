@@ -42,6 +42,10 @@ const electronAPI = {
     ipcRenderer.invoke('settings:getShowHiddenFiles'),
   setShowHiddenFiles: (value) =>
     ipcRenderer.invoke('settings:setShowHiddenFiles', value),
+  getSortOrder: (dirPath) =>
+    ipcRenderer.invoke('settings:getSortOrder', dirPath),
+  setSortOrder: (dirPath, config) =>
+    ipcRenderer.invoke('settings:setSortOrder', dirPath, config),
 
   // Finder favorites
   getFinderFavorites: () =>
@@ -77,7 +81,11 @@ const electronAPI = {
   onFavoritesChanged: (callback) => {
     ipcRenderer.on('favorites:changed', callback)
     return () => ipcRenderer.removeListener('favorites:changed', callback)
-  }
+  },
+  
+  // System
+  openTerminal: (path) => ipcRenderer.invoke('system:openTerminal', path),
+  writeTextToClipboard: (text) => ipcRenderer.invoke('clipboard:writeText', text)
 }
 
 contextBridge.exposeInMainWorld('electron', electronAPI)

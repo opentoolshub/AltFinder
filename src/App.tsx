@@ -12,17 +12,6 @@ interface FileInfo {
   extension: string
 }
 
-interface SpecialPaths {
-  home: string
-  desktop: string
-  documents: string
-  downloads: string
-  music: string
-  pictures: string
-  videos: string
-  applications: string
-}
-
 type SortField = 'name' | 'modifiedTime' | 'createdTime' | 'size' | 'kind'
 type SortDirection = 'asc' | 'desc'
 
@@ -59,7 +48,6 @@ function App() {
   const [showHiddenFiles, setShowHiddenFiles] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [clipboard, setClipboard] = useState<ClipboardState>({ files: [], operation: null })
-  const [specialPaths, setSpecialPaths] = useState<SpecialPaths | null>(null)
   const [finderFavorites, setFinderFavorites] = useState<FinderFavorite[]>([])
   const [favoritesLoading, setFavoritesLoading] = useState(true)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileInfo | null } | null>(null)
@@ -79,7 +67,6 @@ function App() {
         console.log('Getting special paths...')
         const paths = await window.electron.getSpecialPaths()
         console.log('Special paths:', paths)
-        setSpecialPaths(paths)
 
         // Load Finder favorites
         console.log('Loading Finder favorites...')
@@ -151,6 +138,10 @@ function App() {
     try {
       const allFiles = await window.electron.readDirectory(dirPath, showHiddenFiles)
       setFiles(allFiles)
+
+      // Load sort config
+      const savedSort = await window.electron.getSortOrder(dirPath)
+      setSortConfig(savedSort)
 
       // Load pinned files for this directory
       const pins = await window.electron.getPinnedFiles(dirPath)
@@ -238,10 +229,14 @@ function App() {
   }
 
   const handleSort = (field: SortConfig['field']) => {
-    setSortConfig(prev => ({
-      field,
-      direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
-    }))
+    setSortConfig(prev => {
+      const newConfig: SortConfig = {
+        field,
+        direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
+      }
+      window.electron.setSortOrder(currentPath, newConfig)
+      return newConfig
+    })
   }
 
   const handleCopy = () => {
@@ -426,7 +421,7 @@ function App() {
   }
 
   return (
-    <div className="flex h-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">
+    <div className="flex h-full bg-transparent text-neutral-900 dark:text-neutral-100 font-sans select-none">
       {/* Sidebar */}
       <Sidebar
         favorites={finderFavorites}
@@ -436,7 +431,7 @@ function App() {
       />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-neutral-900">
         {/* Toolbar */}
         <Toolbar
           canGoBack={historyIndex > 0}
@@ -542,6 +537,18 @@ function App() {
           }}
           onNewFolder={() => {
             setCreatingFolder(true)
+            closeContextMenu()
+          }}
+          onCopyPath={() => {
+            const path = contextMenu.file ? contextMenu.file.path : currentPath
+            window.electron.writeTextToClipboard(path)
+            closeContextMenu()
+          }}
+          onOpenTerminal={() => {
+            const path = contextMenu.file && contextMenu.file.isDirectory 
+              ? contextMenu.file.path 
+              : currentPath
+            window.electron.openTerminal(path)
             closeContextMenu()
           }}
         />

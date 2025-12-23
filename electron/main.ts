@@ -1,16 +1,20 @@
-import { app, BrowserWindow, ipcMain, shell, Menu, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, nativeImage, clipboard } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
 import { existsSync, statSync, watch } from 'fs'
-import { execSync } from 'child_process'
+import { execSync, exec } from 'child_process'
 import Store from 'electron-store'
 import { fileURLToPath } from 'url'
 import { homedir } from 'os'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// Set app name
-app.name = 'AltFinder'
+// Set app name early (before app is ready)
+app.setName('AltFinder')
+if (process.platform === 'darwin') {
+  // This helps with the dock label in some cases
+  process.title = 'AltFinder'
+}
 
 interface FileInfo {
   name: string
@@ -27,17 +31,32 @@ interface StoreSchema {
   pinnedFiles: Record<string, string[]>
   windowBounds: { width: number; height: number; x?: number; y?: number }
   showHiddenFiles: boolean
+  folderSort: Record<string, { field: string; direction: string }>
 }
 
 const store = new Store<StoreSchema>({
   defaults: {
     pinnedFiles: {},
     windowBounds: { width: 1000, height: 700 },
-    showHiddenFiles: false
+    showHiddenFiles: false,
+    folderSort: {}
   }
 })
 
 let mainWindow: BrowserWindow | null = null
+let fileToOpen: string | null = null
+
+// Handle opening directory via "Open With" or command line on macOS
+app.on('open-file', (event, path) => {
+  event.preventDefault()
+  if (mainWindow) {
+    mainWindow.webContents.send('nav:goto', path)
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+  } else {
+    fileToOpen = path
+  }
+})
 
 function getFileKind(name: string, isDirectory: boolean): string {
   if (isDirectory) return 'Folder'
@@ -132,6 +151,9 @@ function createWindow() {
   let icon = undefined
   if (existsSync(iconPath)) {
     icon = nativeImage.createFromPath(iconPath)
+    if (process.platform === 'darwin') {
+      app.dock.setIcon(icon)
+    }
   }
 
   mainWindow = new BrowserWindow({
@@ -184,6 +206,14 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
+
+  // Handle pending file to open
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (fileToOpen) {
+      mainWindow?.webContents.send('nav:goto', fileToOpen)
+      fileToOpen = null
+    }
+  })
 }
 
 // Build application menu
@@ -449,6 +479,17 @@ ipcMain.handle('settings:setShowHiddenFiles', (_, value: boolean) => {
   store.set('showHiddenFiles', value)
 })
 
+ipcMain.handle('settings:getSortOrder', (_, dirPath: string) => {
+  const sort = store.get('folderSort') || {}
+  return sort[dirPath] || { field: 'name', direction: 'asc' }
+})
+
+ipcMain.handle('settings:setSortOrder', (_, dirPath: string, config: { field: string; direction: string }) => {
+  const sort = store.get('folderSort') || {}
+  sort[dirPath] = config
+  store.set('folderSort', sort)
+})
+
 // Finder favorites
 function getFinderFavorites(): { name: string; path: string }[] {
   try {
@@ -470,6 +511,16 @@ function getFinderFavorites(): { name: string; path: string }[] {
 
 ipcMain.handle('fs:getFinderFavorites', async () => {
   return getFinderFavorites()
+})
+
+ipcMain.handle('system:openTerminal', (_, dirPath: string) => {
+  if (process.platform === 'darwin') {
+    exec(`open -a Terminal "${dirPath}"`)
+  }
+})
+
+ipcMain.handle('clipboard:writeText', (_, text: string) => {
+  clipboard.writeText(text)
 })
 
 // Watch Finder favorites file for changes
