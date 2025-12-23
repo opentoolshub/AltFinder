@@ -532,18 +532,28 @@ function App() {
         </div>
 
         {/* Status bar */}
-        <div className="h-6 px-4 flex items-center justify-between bg-neutral-50/80 dark:bg-[#1a1a1a]/80 border-t border-neutral-200/60 dark:border-white/5 text-[11px] text-neutral-500 dark:text-neutral-500">
+        <div className="h-8 px-4 flex items-center justify-between bg-neutral-50/80 dark:bg-[#1a1a1a]/80 border-t border-neutral-200/60 dark:border-white/5 text-[12px] text-neutral-600 dark:text-neutral-400">
           {selectedFiles.size > 0 ? (
             <>
-              <span className="truncate flex-1 mr-4">
-                {Array.from(selectedFiles)[0]}
-              </span>
-              <span className="flex-shrink-0">
+              <button
+                onClick={() => {
+                  const path = Array.from(selectedFiles)[0]
+                  window.electron.writeTextToClipboard(path)
+                }}
+                className="truncate flex-1 mr-4 text-left hover:text-[#0A84FF] transition-colors cursor-copy group flex items-center gap-1.5"
+                title="Click to copy path"
+              >
+                <span className="truncate">{Array.from(selectedFiles)[0]}</span>
+                <svg className="w-3.5 h-3.5 opacity-0 group-hover:opacity-60 flex-shrink-0 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+              <span className="flex-shrink-0 text-neutral-500 dark:text-neutral-500">
                 {selectedFiles.size === 1 ? '1 item selected' : `${selectedFiles.size} items selected`}
               </span>
             </>
           ) : (
-            <span>
+            <span className="text-neutral-500 dark:text-neutral-500">
               {isAllPinnedView
                 ? `${allPinnedFiles.length} pinned ${allPinnedFiles.length === 1 ? 'item' : 'items'}`
                 : `${files.length + pinnedFiles.length} ${files.length + pinnedFiles.length === 1 ? 'item' : 'items'}`
