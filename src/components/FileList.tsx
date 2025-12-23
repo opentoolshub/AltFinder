@@ -193,20 +193,61 @@ export default function FileList({
       }
     }
 
+    // Sort function for files within groups
+    const sortFiles = (items: { file: FileInfo; sourceDir: string }[]) => {
+      return [...items].sort((a, b) => {
+        const aVal = a.file[sortConfig.field]
+        const bVal = b.file[sortConfig.field]
+        const modifier = sortConfig.direction === 'asc' ? 1 : -1
+
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          return aVal.localeCompare(bVal) * modifier
+        }
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return (aVal - bVal) * modifier
+        }
+        return 0
+      })
+    }
+
     return (
       <>
         <div className="w-full min-w-full pb-4">
           {/* Header */}
           <div className={`sticky top-0 z-10 py-2.5 bg-white/90 dark:bg-[#151515]/90 backdrop-blur-xl border-b border-neutral-200/80 dark:border-white/5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide ${gridClass}`}>
-            <span className="pl-1">Name</span>
-            <span>Date Modified</span>
-            <span className="text-right">Size</span>
-            <span>Kind</span>
+            <button
+              onClick={() => onSort('name')}
+              className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left transition-colors"
+            >
+              Name
+              <SortIcon direction={sortConfig.field === 'name' ? sortConfig.direction : null} />
+            </button>
+            <button
+              onClick={() => onSort('modifiedTime')}
+              className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left transition-colors"
+            >
+              Date Modified
+              <SortIcon direction={sortConfig.field === 'modifiedTime' ? sortConfig.direction : null} />
+            </button>
+            <button
+              onClick={() => onSort('size')}
+              className="flex items-center justify-end hover:text-neutral-700 dark:hover:text-neutral-200 text-right transition-colors"
+            >
+              Size
+              <SortIcon direction={sortConfig.field === 'size' ? sortConfig.direction : null} />
+            </button>
+            <button
+              onClick={() => onSort('kind')}
+              className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left transition-colors"
+            >
+              Kind
+              <SortIcon direction={sortConfig.field === 'kind' ? sortConfig.direction : null} />
+            </button>
           </div>
 
           <div className="pt-1 px-2">
             {dirPaths.map((dirPath) => {
-              const items = groupedByDir[dirPath]
+              const items = sortFiles(groupedByDir[dirPath])
               const dirName = dirPath.split('/').pop() || dirPath
 
               return (
