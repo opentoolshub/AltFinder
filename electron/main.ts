@@ -2,10 +2,13 @@ import { app, BrowserWindow, ipcMain, shell, Menu, nativeImage, clipboard } from
 import path from 'path'
 import fs from 'fs/promises'
 import { existsSync, statSync, watch } from 'fs'
-import { execSync, exec } from 'child_process'
+import { exec, spawn } from 'child_process'
 import Store from 'electron-store'
 import { fileURLToPath } from 'url'
 import { homedir } from 'os'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -115,17 +118,24 @@ function getFileKind(name: string, isDirectory: boolean): string {
   return kinds[ext] || (ext ? `${ext.slice(1).toUpperCase()} File` : 'Document')
 }
 
-async function readDirectory(dirPath: string, showHidden: boolean): Promise<FileInfo[]> {
+async function readDirectory(dirPath: string, showHidden: boolean, limit?: number): Promise<FileInfo[]> {
   const entries = await fs.readdir(dirPath, { withFileTypes: true })
   const files: FileInfo[] = []
 
-  for (const entry of entries) {
-    if (!showHidden && entry.name.startsWith('.')) continue
+  // Filter entries first (faster than checking in loop)
+  const filteredEntries = showHidden
+    ? entries
+    : entries.filter(e => !e.name.startsWith('.'))
 
-    const fullPath = path.join(dirPath, entry.name)
-    try {
+  // Process entries up to limit (or all if no limit)
+  const entriesToProcess = limit ? filteredEntries.slice(0, limit) : filteredEntries
+
+  // Process in parallel for speed
+  const results = await Promise.allSettled(
+    entriesToProcess.map(async (entry) => {
+      const fullPath = path.join(dirPath, entry.name)
       const stats = await fs.stat(fullPath)
-      files.push({
+      return {
         name: entry.name,
         path: fullPath,
         isDirectory: entry.isDirectory(),
@@ -134,13 +144,58 @@ async function readDirectory(dirPath: string, showHidden: boolean): Promise<File
         createdTime: stats.birthtimeMs,
         kind: getFileKind(entry.name, entry.isDirectory()),
         extension: path.extname(entry.name).toLowerCase()
-      })
-    } catch {
-      // Skip files we can't read
+      }
+    })
+  )
+
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      files.push(result.value)
     }
   }
 
   return files
+}
+
+// Read directory with pagination info
+async function readDirectoryWithMeta(dirPath: string, showHidden: boolean, limit?: number): Promise<{ files: FileInfo[]; total: number; hasMore: boolean }> {
+  const entries = await fs.readdir(dirPath, { withFileTypes: true })
+
+  // Filter entries first
+  const filteredEntries = showHidden
+    ? entries
+    : entries.filter(e => !e.name.startsWith('.'))
+
+  const total = filteredEntries.length
+  const entriesToProcess = limit ? filteredEntries.slice(0, limit) : filteredEntries
+  const hasMore = limit ? filteredEntries.length > limit : false
+
+  // Process in parallel for speed
+  const results = await Promise.allSettled(
+    entriesToProcess.map(async (entry) => {
+      const fullPath = path.join(dirPath, entry.name)
+      const stats = await fs.stat(fullPath)
+      return {
+        name: entry.name,
+        path: fullPath,
+        isDirectory: entry.isDirectory(),
+        size: stats.size,
+        modifiedTime: stats.mtimeMs,
+        createdTime: stats.birthtimeMs,
+        kind: getFileKind(entry.name, entry.isDirectory()),
+        extension: path.extname(entry.name).toLowerCase()
+      }
+    })
+  )
+
+  const files: FileInfo[] = []
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      files.push(result.value)
+    }
+  }
+
+  return { files, total, hasMore }
 }
 
 function createWindow() {
@@ -359,8 +414,12 @@ app.on('window-all-closed', () => {
 
 // IPC Handlers
 
-ipcMain.handle('fs:readDirectory', async (_, dirPath: string, showHidden: boolean) => {
-  return readDirectory(dirPath, showHidden)
+ipcMain.handle('fs:readDirectory', async (_, dirPath: string, showHidden: boolean, limit?: number) => {
+  return readDirectory(dirPath, showHidden, limit)
+})
+
+ipcMain.handle('fs:readDirectoryWithMeta', async (_, dirPath: string, showHidden: boolean, limit?: number) => {
+  return readDirectoryWithMeta(dirPath, showHidden, limit)
 })
 
 ipcMain.handle('fs:getHomeDir', () => app.getPath('home'))
@@ -522,23 +581,55 @@ ipcMain.handle('settings:setSortOrder', (_, dirPath: string, config: { field: st
   store.set('folderSort', sort)
 })
 
-// Finder favorites
-function getFinderFavorites(): { name: string; path: string }[] {
+// Finder favorites - async and cached
+let cachedFinderFavorites: { name: string; path: string }[] | null = null
+let finderFavoritesLoading = false
+
+async function getFinderFavorites(): Promise<{ name: string; path: string }[]> {
+  // Return cache if available
+  if (cachedFinderFavorites !== null) {
+    return cachedFinderFavorites
+  }
+
+  // Prevent multiple simultaneous loads
+  if (finderFavoritesLoading) {
+    return []
+  }
+
+  finderFavoritesLoading = true
+
   try {
     const scriptPath = path.join(__dirname, '../scripts/read-finder-favorites.swift')
     if (!existsSync(scriptPath)) {
+      finderFavoritesLoading = false
       return []
     }
-    const output = execSync(`swift "${scriptPath}"`, { encoding: 'utf-8', timeout: 5000 })
-    const favorites = JSON.parse(output)
+
+    const { stdout } = await execAsync(`swift "${scriptPath}"`, { timeout: 10000 })
+    const favorites = JSON.parse(stdout)
     // Filter out empty entries and special items
-    return favorites.filter((f: { name: string; path: string }) =>
+    cachedFinderFavorites = favorites.filter((f: { name: string; path: string }) =>
       f.name && f.path && !f.path.includes('.cannedSearch')
     )
+    finderFavoritesLoading = false
+    return cachedFinderFavorites
   } catch (error) {
     console.error('Failed to read Finder favorites:', error)
-    return []
+    finderFavoritesLoading = false
+    // Return default favorites as fallback
+    const home = homedir()
+    return [
+      { name: 'Desktop', path: path.join(home, 'Desktop') },
+      { name: 'Documents', path: path.join(home, 'Documents') },
+      { name: 'Downloads', path: path.join(home, 'Downloads') },
+      { name: 'Applications', path: '/Applications' },
+    ]
   }
+}
+
+// Invalidate cache when favorites file changes
+function invalidateFinderFavoritesCache() {
+  cachedFinderFavorites = null
 }
 
 ipcMain.handle('fs:getFinderFavorites', async () => {
@@ -571,7 +662,8 @@ function setupFavoritesWatcher() {
     if (existsSync(favoritesDir)) {
       favoritesWatcher = watch(favoritesDir, (eventType, filename) => {
         if (filename && filename.includes('FavoriteItems')) {
-          console.log('Finder favorites changed, notifying renderer...')
+          console.log('Finder favorites changed, invalidating cache...')
+          invalidateFinderFavoritesCache()
           mainWindow?.webContents.send('favorites:changed')
         }
       })

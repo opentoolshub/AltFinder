@@ -136,12 +136,19 @@ function App() {
     }
   }, [currentPath, showHiddenFiles])
 
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [totalItems, setTotalItems] = useState(0)
+
   const loadDirectory = async (dirPath: string) => {
     if (!window.electron) return
     setLoading(true)
+    setLoadingMore(false)
     try {
-      const allFiles = await window.electron.readDirectory(dirPath, showHiddenFiles)
-      setFiles(allFiles)
+      // Load first 200 items quickly
+      const INITIAL_LIMIT = 200
+      const { files: initialFiles, total, hasMore } = await window.electron.readDirectoryWithMeta(dirPath, showHiddenFiles, INITIAL_LIMIT)
+      setFiles(initialFiles)
+      setTotalItems(total)
 
       // Load sort config
       const savedSort = await window.electron.getSortOrder(dirPath)
@@ -161,6 +168,28 @@ function App() {
         }
       }
       setPinnedFiles(pinnedInfos)
+
+      // Load remaining files in background if there are more
+      if (hasMore) {
+        setLoadingMore(true)
+        // Use setTimeout to let UI render first
+        setTimeout(async () => {
+          try {
+            const allFiles = await window.electron.readDirectory(dirPath, showHiddenFiles)
+            // Only update if we're still on the same path
+            setFiles(prev => {
+              // Check if path changed by comparing with current files
+              if (prev.length > 0 && allFiles.length > 0 && prev[0]?.path.startsWith(dirPath)) {
+                return allFiles
+              }
+              return prev
+            })
+          } catch (err) {
+            console.error('Failed to load remaining files:', err)
+          }
+          setLoadingMore(false)
+        }, 50)
+      }
     } catch (error) {
       console.error('Failed to read directory:', error)
       setFiles([])
@@ -575,10 +604,18 @@ function App() {
               </span>
             </>
           ) : (
-            <span className="text-neutral-500 dark:text-neutral-500">
+            <span className="text-neutral-500 dark:text-neutral-500 flex items-center gap-2">
               {isAllPinnedView
                 ? `${allPinnedFiles.length} pinned ${allPinnedFiles.length === 1 ? 'item' : 'items'}`
-                : `${files.length + pinnedFiles.length} ${files.length + pinnedFiles.length === 1 ? 'item' : 'items'}`
+                : loadingMore
+                  ? <>
+                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      {`Loading... ${files.length} of ${totalItems} items`}
+                    </>
+                  : `${files.length + pinnedFiles.length} ${files.length + pinnedFiles.length === 1 ? 'item' : 'items'}`
               }
             </span>
           )}

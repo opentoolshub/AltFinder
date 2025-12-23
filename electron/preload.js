@@ -2,8 +2,10 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 const electronAPI = {
   // File system operations
-  readDirectory: (dirPath, showHidden) =>
-    ipcRenderer.invoke('fs:readDirectory', dirPath, showHidden),
+  readDirectory: (dirPath, showHidden, limit) =>
+    ipcRenderer.invoke('fs:readDirectory', dirPath, showHidden, limit),
+  readDirectoryWithMeta: (dirPath, showHidden, limit) =>
+    ipcRenderer.invoke('fs:readDirectoryWithMeta', dirPath, showHidden, limit),
   getHomeDir: () =>
     ipcRenderer.invoke('fs:getHomeDir'),
   getSpecialPaths: () =>
