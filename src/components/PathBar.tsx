@@ -3,6 +3,8 @@ import { useState, useRef, useEffect } from 'react'
 interface PathBarProps {
   path: string
   onNavigate: (path: string) => void
+  onOpenInFinder?: (path: string) => void
+  onOpenInTerminal?: (path: string) => void
 }
 
 const ChevronRight = () => (
@@ -31,7 +33,7 @@ const CopyIcon = () => (
   </svg>
 )
 
-export default function PathBar({ path, onNavigate }: PathBarProps) {
+export default function PathBar({ path, onNavigate, onOpenInFinder, onOpenInTerminal }: PathBarProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(path)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null)
@@ -188,12 +190,56 @@ export default function PathBar({ path, onNavigate }: PathBarProps) {
         </div>
       </div>
 
-      {/* Context menu for copying path */}
+      {/* Context menu for path segments */}
       {contextMenu && (
         <div
-          className="fixed z-50 min-w-[160px] py-1 bg-white/95 dark:bg-[#2a2a2a]/95 backdrop-blur-2xl rounded-xl shadow-2xl border border-neutral-200/50 dark:border-white/10"
+          className="fixed z-50 min-w-[180px] py-1 bg-white/95 dark:bg-[#2a2a2a]/95 backdrop-blur-2xl rounded-xl shadow-2xl border border-neutral-200/50 dark:border-white/10"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          <button
+            onClick={() => {
+              onNavigate(contextMenu.path)
+              setContextMenu(null)
+            }}
+            className="w-full px-3 py-[6px] mx-1 text-left text-[13px] flex items-center gap-2 transition-all duration-75 rounded-md text-neutral-800 dark:text-neutral-200 hover:bg-[#0A84FF] hover:text-white"
+            style={{ width: 'calc(100% - 8px)' }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            Open in AltFinder
+          </button>
+          {onOpenInFinder && (
+            <button
+              onClick={() => {
+                onOpenInFinder(contextMenu.path)
+                setContextMenu(null)
+              }}
+              className="w-full px-3 py-[6px] mx-1 text-left text-[13px] flex items-center gap-2 transition-all duration-75 rounded-md text-neutral-800 dark:text-neutral-200 hover:bg-[#0A84FF] hover:text-white"
+              style={{ width: 'calc(100% - 8px)' }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Show in Finder
+            </button>
+          )}
+          {onOpenInTerminal && (
+            <button
+              onClick={() => {
+                onOpenInTerminal(contextMenu.path)
+                setContextMenu(null)
+              }}
+              className="w-full px-3 py-[6px] mx-1 text-left text-[13px] flex items-center gap-2 transition-all duration-75 rounded-md text-neutral-800 dark:text-neutral-200 hover:bg-[#0A84FF] hover:text-white"
+              style={{ width: 'calc(100% - 8px)' }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Open in Terminal
+            </button>
+          )}
+          <div className="my-1 mx-2 border-t border-neutral-200/60 dark:border-white/10" />
           <button
             onClick={() => handleCopyPath(contextMenu.path)}
             className="w-full px-3 py-[6px] mx-1 text-left text-[13px] flex items-center gap-2 transition-all duration-75 rounded-md text-neutral-800 dark:text-neutral-200 hover:bg-[#0A84FF] hover:text-white"

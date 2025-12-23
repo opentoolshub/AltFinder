@@ -8,6 +8,8 @@ interface SidebarProps {
   currentPath: string
   onNavigate: (path: string) => void
   loading: boolean
+  error?: string | null
+  onRetry?: () => void
   homePath: string
   isAllPinnedView: boolean
   onShowAllPinned: () => void
@@ -124,7 +126,7 @@ const PinnedIcon = () => (
   </svg>
 )
 
-export default function Sidebar({ favorites = [], currentPath, onNavigate, loading, homePath, isAllPinnedView, onShowAllPinned }: SidebarProps) {
+export default function Sidebar({ favorites = [], currentPath, onNavigate, loading, error, onRetry, homePath, isAllPinnedView, onShowAllPinned }: SidebarProps) {
 
   if (loading) {
     return (
@@ -138,6 +140,30 @@ export default function Sidebar({ favorites = [], currentPath, onNavigate, loadi
             </svg>
             <span className="text-[13px]">Loading...</span>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="w-56 bg-neutral-100/60 dark:bg-[#1e1e1e]/50 border-r border-neutral-200/60 dark:border-white/5 flex-shrink-0 backdrop-blur-xl flex flex-col">
+        <div className="h-12 w-full drag-region flex-shrink-0" />
+        <div className="flex-1 flex flex-col items-center justify-center px-4 text-center">
+          <svg className="w-8 h-8 text-red-400 dark:text-red-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <p className="text-[13px] text-neutral-500 dark:text-neutral-400 mb-3">
+            {error}
+          </p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="px-3 py-1.5 text-[12px] font-medium bg-[#0A84FF] text-white rounded-md hover:bg-[#0077ED] transition-colors"
+            >
+              Retry
+            </button>
+          )}
         </div>
       </div>
     )

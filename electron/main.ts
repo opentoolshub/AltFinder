@@ -118,6 +118,55 @@ function getFileKind(name: string, isDirectory: boolean): string {
   return kinds[ext] || (ext ? `${ext.slice(1).toUpperCase()} File` : 'Document')
 }
 
+// Fast directory read - no stat calls, just basic info from readdir
+async function readDirectoryFast(dirPath: string, showHidden: boolean): Promise<FileInfo[]> {
+  const entries = await fs.readdir(dirPath, { withFileTypes: true })
+
+  const filteredEntries = showHidden
+    ? entries
+    : entries.filter(e => !e.name.startsWith('.'))
+
+  return filteredEntries.map((entry) => ({
+    name: entry.name,
+    path: path.join(dirPath, entry.name),
+    isDirectory: entry.isDirectory(),
+    size: 0, // Will be filled in by metadata load
+    modifiedTime: 0,
+    createdTime: 0,
+    kind: getFileKind(entry.name, entry.isDirectory()),
+    extension: path.extname(entry.name).toLowerCase()
+  }))
+}
+
+// Get metadata for a batch of files
+async function getFilesMetadata(filePaths: string[]): Promise<Record<string, { size: number; modifiedTime: number; createdTime: number }>> {
+  const results: Record<string, { size: number; modifiedTime: number; createdTime: number }> = {}
+
+  const statResults = await Promise.allSettled(
+    filePaths.map(async (filePath) => {
+      const stats = await fs.stat(filePath)
+      return {
+        path: filePath,
+        size: stats.size,
+        modifiedTime: stats.mtimeMs,
+        createdTime: stats.birthtimeMs
+      }
+    })
+  )
+
+  for (const result of statResults) {
+    if (result.status === 'fulfilled') {
+      results[result.value.path] = {
+        size: result.value.size,
+        modifiedTime: result.value.modifiedTime,
+        createdTime: result.value.createdTime
+      }
+    }
+  }
+
+  return results
+}
+
 async function readDirectory(dirPath: string, showHidden: boolean, limit?: number): Promise<FileInfo[]> {
   const entries = await fs.readdir(dirPath, { withFileTypes: true })
   const files: FileInfo[] = []
@@ -319,6 +368,7 @@ function createMenu() {
         {
           label: 'Show Hidden Files',
           type: 'checkbox',
+          accelerator: 'CmdOrCtrl+Shift+.',
           checked: store.get('showHiddenFiles'),
           click: (menuItem) => {
             store.set('showHiddenFiles', menuItem.checked)
@@ -416,6 +466,14 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('fs:readDirectory', async (_, dirPath: string, showHidden: boolean, limit?: number) => {
   return readDirectory(dirPath, showHidden, limit)
+})
+
+ipcMain.handle('fs:readDirectoryFast', async (_, dirPath: string, showHidden: boolean) => {
+  return readDirectoryFast(dirPath, showHidden)
+})
+
+ipcMain.handle('fs:getFilesMetadata', async (_, filePaths: string[]) => {
+  return getFilesMetadata(filePaths)
 })
 
 ipcMain.handle('fs:readDirectoryWithMeta', async (_, dirPath: string, showHidden: boolean, limit?: number) => {

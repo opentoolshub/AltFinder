@@ -4,6 +4,10 @@ const electronAPI = {
   // File system operations
   readDirectory: (dirPath, showHidden, limit) =>
     ipcRenderer.invoke('fs:readDirectory', dirPath, showHidden, limit),
+  readDirectoryFast: (dirPath, showHidden) =>
+    ipcRenderer.invoke('fs:readDirectoryFast', dirPath, showHidden),
+  getFilesMetadata: (filePaths) =>
+    ipcRenderer.invoke('fs:getFilesMetadata', filePaths),
   readDirectoryWithMeta: (dirPath, showHidden, limit) =>
     ipcRenderer.invoke('fs:readDirectoryWithMeta', dirPath, showHidden, limit),
   getHomeDir: () =>

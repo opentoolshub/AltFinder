@@ -50,6 +50,7 @@ function App() {
   const [clipboard, setClipboard] = useState<ClipboardState>({ files: [], operation: null })
   const [finderFavorites, setFinderFavorites] = useState<FinderFavorite[]>([])
   const [favoritesLoading, setFavoritesLoading] = useState(true)
+  const [favoritesError, setFavoritesError] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileInfo | null } | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [creatingFolder, setCreatingFolder] = useState(false)
@@ -60,6 +61,21 @@ function App() {
   const fileListRef = useRef<HTMLDivElement>(null)
   const loadIdRef = useRef<number>(0) // Track current load to cancel stale loads
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null) // Debounce rapid navigation
+
+  // Load favorites with error handling
+  const loadFavorites = useCallback(async () => {
+    if (!window.electron) return
+    setFavoritesLoading(true)
+    setFavoritesError(null)
+    try {
+      const favorites = await window.electron.getFinderFavorites()
+      setFinderFavorites(favorites)
+    } catch (err) {
+      console.error('Failed to load favorites:', err)
+      setFavoritesError('Failed to load favorites')
+    }
+    setFavoritesLoading(false)
+  }, [])
 
   // Initialize
   useEffect(() => {
@@ -76,10 +92,7 @@ function App() {
 
         // Load Finder favorites
         console.log('Loading Finder favorites...')
-        const favorites = await window.electron.getFinderFavorites()
-        console.log('Finder favorites:', favorites)
-        setFinderFavorites(favorites)
-        setFavoritesLoading(false)
+        await loadFavorites()
 
         const hidden = await window.electron.getShowHiddenFiles()
         setShowHiddenFiles(hidden)
@@ -140,8 +153,8 @@ function App() {
       }
       // Increment load ID immediately to cancel any in-flight loads
       loadIdRef.current++
-      // Show loading state immediately for responsiveness
-      setLoading(true)
+      // Don't show loading spinner - fast load is nearly instant
+      // The previous files will show briefly then be replaced
       // Debounce the actual load by 50ms to handle rapid clicks
       loadTimeoutRef.current = setTimeout(() => {
         loadDirectory(currentPath)
@@ -163,27 +176,28 @@ function App() {
     // Increment load ID to cancel any in-progress loads
     const thisLoadId = ++loadIdRef.current
 
-    setLoading(true)
+    // Don't set loading=true here - fast load is nearly instant (<50ms)
+    // This keeps the UI responsive during navigation
     setLoadingMore(false)
     try {
-      // Load initial files, sort config, and pinned paths in parallel
-      const INITIAL_LIMIT = 200
-      const [filesResult, savedSort, pins] = await Promise.all([
-        window.electron.readDirectoryWithMeta(dirPath, showHiddenFiles, INITIAL_LIMIT),
+      // FAST: Load file list (no stat calls), sort config, and pinned paths in parallel
+      const [fastFiles, savedSort, pins] = await Promise.all([
+        window.electron.readDirectoryFast(dirPath, showHiddenFiles),
         window.electron.getSortOrder(dirPath),
         window.electron.getPinnedFiles(dirPath)
       ])
 
-      // Check if this load was cancelled (user navigated elsewhere)
+      // Check if this load was cancelled
       if (thisLoadId !== loadIdRef.current) return
 
-      const { files: initialFiles, total, hasMore } = filesResult
-      setFiles(initialFiles)
-      setTotalItems(total)
+      // Show files immediately (with placeholder size/date)
+      setFiles(fastFiles)
+      setTotalItems(fastFiles.length)
       setSortConfig(savedSort)
       setPinnedPaths(pins)
+      setLoading(false) // UI is now responsive!
 
-      // Get FileInfo for pinned files in parallel
+      // Load pinned files info in parallel
       const pinnedResults = await Promise.all(
         pins.map(async (pinPath) => {
           const exists = await window.electron.exists(pinPath)
@@ -193,34 +207,36 @@ function App() {
           return null
         })
       )
-
       if (thisLoadId !== loadIdRef.current) return
       setPinnedFiles(pinnedResults.filter((f): f is FileInfo => f !== null))
 
-      // Load remaining files in background if there are more
-      if (hasMore) {
+      // Load metadata in background batches
+      if (fastFiles.length > 0) {
         setLoadingMore(true)
-        // Use setTimeout to let UI render first
-        setTimeout(async () => {
-          // Check if load was cancelled
-          if (thisLoadId !== loadIdRef.current) return
-          try {
-            const allFiles = await window.electron.readDirectory(dirPath, showHiddenFiles)
-            // Only update if this load is still current
-            if (thisLoadId === loadIdRef.current) {
-              setFiles(allFiles)
-            }
-          } catch (err) {
-            console.error('Failed to load remaining files:', err)
-          }
-          if (thisLoadId === loadIdRef.current) {
-            setLoadingMore(false)
-          }
-        }, 50)
-      }
+        const BATCH_SIZE = 50
+        const filePaths = fastFiles.map(f => f.path)
 
-      if (thisLoadId === loadIdRef.current) {
-        setLoading(false)
+        for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+          if (thisLoadId !== loadIdRef.current) return
+
+          const batch = filePaths.slice(i, i + BATCH_SIZE)
+          const metadata = await window.electron.getFilesMetadata(batch)
+
+          if (thisLoadId !== loadIdRef.current) return
+
+          // Update files with metadata
+          setFiles(prev => prev.map(f => {
+            const meta = metadata[f.path]
+            if (meta) {
+              return { ...f, size: meta.size, modifiedTime: meta.modifiedTime, createdTime: meta.createdTime }
+            }
+            return f
+          }))
+        }
+
+        if (thisLoadId === loadIdRef.current) {
+          setLoadingMore(false)
+        }
       }
     } catch (error) {
       console.error('Failed to read directory:', error)
@@ -518,6 +534,8 @@ function App() {
         currentPath={currentPath}
         onNavigate={navigateTo}
         loading={favoritesLoading}
+        error={favoritesError}
+        onRetry={loadFavorites}
         homePath={homePath}
         isAllPinnedView={isAllPinnedView}
         onShowAllPinned={showAllPinned}
@@ -533,6 +551,12 @@ function App() {
           onForward={goForward}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          showHiddenFiles={showHiddenFiles}
+          onToggleHiddenFiles={() => {
+            const newValue = !showHiddenFiles
+            setShowHiddenFiles(newValue)
+            window.electron.setShowHiddenFiles(newValue)
+          }}
         />
 
         {/* Path bar or All Pinned header */}
@@ -575,7 +599,12 @@ function App() {
             )}
           </div>
         ) : (
-          <PathBar path={currentPath} onNavigate={navigateTo} />
+          <PathBar
+            path={currentPath}
+            onNavigate={navigateTo}
+            onOpenInFinder={(p) => window.electron.showInFinder(p)}
+            onOpenInTerminal={(p) => window.electron.openTerminal(p)}
+          />
         )}
 
         {/* File list */}
