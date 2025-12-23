@@ -117,55 +117,55 @@ export default function FileList({
     }
   }
 
-  const gridClass = "grid w-full grid-cols-[1fr] md:grid-cols-[minmax(200px,1fr)_160px] lg:grid-cols-[minmax(200px,1fr)_160px_100px] xl:grid-cols-[minmax(200px,1fr)_160px_100px_120px] gap-4 px-4 items-center"
+  const gridClass = "grid min-w-[600px] grid-cols-[minmax(250px,1fr)_150px_90px_120px] gap-x-4 px-4 items-center"
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-neutral-500">
+      <div className="flex items-center justify-center h-full text-neutral-400">
         Loading...
       </div>
     )
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full min-w-full pb-4">
       {/* Header */}
-      <div className={`sticky top-0 z-10 py-2 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800 text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider ${gridClass}`}>
+      <div className={`sticky top-0 z-10 py-2 bg-white/95 dark:bg-[#1e1e1e]/95 backdrop-blur-md border-b border-neutral-200 dark:border-[#333] text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider ${gridClass}`}>
         <button
           onClick={() => onSort('name')}
-          className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left"
+          className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left transition-colors pl-1"
         >
           Name
           <SortIcon direction={sortConfig.field === 'name' ? sortConfig.direction : null} />
         </button>
         <button
           onClick={() => onSort('modifiedTime')}
-          className="hidden md:flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left"
+          className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left transition-colors"
         >
           Date Modified
           <SortIcon direction={sortConfig.field === 'modifiedTime' ? sortConfig.direction : null} />
         </button>
         <button
           onClick={() => onSort('size')}
-          className="hidden lg:flex items-center justify-end hover:text-neutral-700 dark:hover:text-neutral-200 text-right"
+          className="flex items-center justify-end hover:text-neutral-700 dark:hover:text-neutral-200 text-right transition-colors"
         >
           Size
           <SortIcon direction={sortConfig.field === 'size' ? sortConfig.direction : null} />
         </button>
         <button
           onClick={() => onSort('kind')}
-          className="hidden xl:flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left"
+          className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 text-left transition-colors"
         >
           Kind
           <SortIcon direction={sortConfig.field === 'kind' ? sortConfig.direction : null} />
         </button>
       </div>
 
-      <div className="pb-2">
+      <div className="pt-2 px-2">
         {/* Pinned section */}
         {pinnedFiles.length > 0 && (
           <>
-            <div className="px-4 py-2 text-xs font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mt-2">
+            <div className="px-4 py-1.5 text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mt-1 mb-1">
               Pinned
             </div>
             {pinnedFiles.map((file) => (
@@ -185,7 +185,7 @@ export default function FileList({
                 gridClass={gridClass}
               />
             ))}
-            <div className="my-2 border-b border-neutral-200 dark:border-neutral-800 mx-4" />
+            <div className="my-2 border-b border-neutral-100 dark:border-[#2a2a2a] mx-4" />
           </>
         )}
 
@@ -215,9 +215,9 @@ export default function FileList({
                 className="flex-1 px-2 py-1 text-sm bg-white dark:bg-neutral-800 border-2 border-blue-500 rounded-md focus:outline-none shadow-sm"
               />
             </div>
-            <div className="hidden md:block text-sm text-neutral-400">--</div>
-            <div className="hidden lg:block text-sm text-neutral-400 text-right">--</div>
-            <div className="hidden xl:block text-sm text-neutral-400">Folder</div>
+            <div className="text-sm text-neutral-400">--</div>
+            <div className="text-sm text-neutral-400 text-right">--</div>
+            <div className="text-sm text-neutral-400">Folder</div>
           </div>
         )}
 

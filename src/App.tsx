@@ -54,6 +54,7 @@ function App() {
   const [renaming, setRenaming] = useState<string | null>(null)
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [homePath, setHomePath] = useState<string>('/')
   const fileListRef = useRef<HTMLDivElement>(null)
 
   // Initialize
@@ -67,6 +68,7 @@ function App() {
         console.log('Getting special paths...')
         const paths = await window.electron.getSpecialPaths()
         console.log('Special paths:', paths)
+        setHomePath(paths.home)
 
         // Load Finder favorites
         console.log('Loading Finder favorites...')
@@ -421,17 +423,18 @@ function App() {
   }
 
   return (
-    <div className="flex h-full bg-transparent text-neutral-900 dark:text-neutral-100 font-sans select-none">
+    <div className="flex w-full h-full bg-transparent text-neutral-900 dark:text-neutral-100 font-sans select-none">
       {/* Sidebar */}
       <Sidebar
         favorites={finderFavorites}
         currentPath={currentPath}
         onNavigate={navigateTo}
         loading={favoritesLoading}
+        homePath={homePath}
       />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-neutral-900">
+      <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#1e1e1e]">
         {/* Toolbar */}
         <Toolbar
           canGoBack={historyIndex > 0}
@@ -448,7 +451,7 @@ function App() {
         {/* File list */}
         <div
           ref={fileListRef}
-          className="flex-1 overflow-auto"
+          className="flex-1 overflow-auto w-full min-w-0"
           onClick={(e) => {
             if (e.target === fileListRef.current) {
               setSelectedFiles(new Set())

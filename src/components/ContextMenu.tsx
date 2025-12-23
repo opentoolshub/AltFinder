@@ -131,7 +131,7 @@ export default function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 min-w-[200px] py-1 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700"
+      className="fixed z-50 min-w-[200px] py-1.5 bg-white/95 dark:bg-[#252525]/95 backdrop-blur-xl rounded-lg shadow-xl border border-neutral-200 dark:border-[#444]"
       style={{ left: x, top: y }}
     >
       {items.map((item, index) => {
@@ -139,7 +139,7 @@ export default function ContextMenu({
           return (
             <div
               key={index}
-              className="my-1 border-t border-neutral-200 dark:border-neutral-700"
+              className="my-1.5 border-t border-neutral-200 dark:border-[#444]"
             />
           )
         }
@@ -153,10 +153,10 @@ export default function ContextMenu({
               }
             }}
             disabled={item.disabled}
-            className={`w-full px-3 py-1.5 text-left text-sm flex items-center justify-between
+            className={`w-full px-4 py-1.5 text-left text-[13px] flex items-center justify-between transition-colors
               ${item.disabled
                 ? 'text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
-                : 'text-neutral-700 dark:text-neutral-300 hover:bg-blue-500 hover:text-white'
+                : 'text-neutral-700 dark:text-neutral-200 hover:bg-blue-600 hover:text-white'
               }`}
           >
             <span>{item.label}</span>

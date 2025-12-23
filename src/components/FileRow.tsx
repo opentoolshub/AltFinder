@@ -79,21 +79,24 @@ export default function FileRow({
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (isRenaming && inputRef.current) {
-      inputRef.current.focus()
-      // Select filename without extension
-      const dotIndex = file.name.lastIndexOf('.')
-      if (dotIndex > 0 && !file.isDirectory) {
-        inputRef.current.setSelectionRange(0, dotIndex)
-      } else {
-        inputRef.current.select()
-      }
+    if (isRenaming) {
+      // Use setTimeout to avoid synchronous state update warning and ensure input is ready
+      const timer = setTimeout(() => {
+        setEditName(file.name)
+        if (inputRef.current) {
+          inputRef.current.focus()
+          // Select filename without extension
+          const dotIndex = file.name.lastIndexOf('.')
+          if (dotIndex > 0 && !file.isDirectory) {
+            inputRef.current.setSelectionRange(0, dotIndex)
+          } else {
+            inputRef.current.select()
+          }
+        }
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [isRenaming, file.name, file.isDirectory])
-
-  useEffect(() => {
-    setEditName(file.name)
-  }, [file.name])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -122,18 +125,18 @@ export default function FileRow({
         relative group cursor-default select-none py-1.5 transition-colors duration-75 w-full
         ${gridClass || 'flex items-center gap-4 px-4'}
         ${isSelected
-          ? 'bg-blue-600 text-white shadow-sm' // Removed rounded-lg to check visual
-          : 'hover:bg-neutral-100 dark:hover:bg-neutral-800/60 text-neutral-700 dark:text-neutral-300'
+          ? 'bg-blue-600 text-white shadow-sm'
+          : 'hover:bg-neutral-100 dark:hover:bg-white/5 text-neutral-700 dark:text-neutral-300 odd:bg-transparent even:bg-neutral-50/30 dark:even:bg-white/[0.02]'
         }
-        ${isSelected ? 'rounded-lg' : 'rounded-lg'}
+        ${isSelected ? 'rounded-md' : 'rounded-md'}
       `}
       onClick={(e) => onSelect(file, e.metaKey || e.ctrlKey)}
       onDoubleClick={() => onOpen(file)}
       onContextMenu={(e) => onContextMenu(e, file)}
     >
       {/* Name column */}
-      <div className="flex items-center gap-3 overflow-hidden min-w-0 w-full">
-        <div className="flex-shrink-0">
+      <div className="flex items-center gap-3 overflow-hidden min-w-0 w-full pl-1">
+        <div className="flex-shrink-0 opacity-90">
           {file.isDirectory ? <FolderIcon /> : <FileIcon extension={file.extension} />}
         </div>
 
@@ -146,27 +149,27 @@ export default function FileRow({
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-[50px] px-1.5 py-0.5 text-sm bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 border-2 border-blue-500 rounded shadow-sm focus:outline-none"
+            className="flex-1 min-w-[50px] px-1.5 py-0.5 text-sm bg-white dark:bg-[#252525] text-neutral-900 dark:text-white border border-blue-500 rounded shadow-sm focus:outline-none"
           />
         ) : (
-          <span className="truncate text-sm font-medium">{file.name}</span>
+          <span className="truncate text-[13px] font-medium leading-tight">{file.name}</span>
         )}
 
         {isPinned && !isRenaming && <PinIcon />}
       </div>
 
       {/* Date column */}
-      <div className={`hidden md:block text-sm truncate ${isSelected ? 'text-blue-100' : 'text-neutral-500 dark:text-neutral-500'}`}>
+      <div className={`text-[13px] truncate ${isSelected ? 'text-blue-100' : 'text-neutral-500 dark:text-neutral-500'}`}>
         {formatDate(file.modifiedTime)}
       </div>
 
       {/* Size column */}
-      <div className={`hidden lg:block text-sm text-right font-mono ${isSelected ? 'text-blue-100' : 'text-neutral-400 dark:text-neutral-600'}`}>
+      <div className={`text-[13px] text-right font-mono opacity-80 ${isSelected ? 'text-blue-100' : 'text-neutral-400 dark:text-neutral-500'}`}>
         {file.isDirectory ? '--' : formatSize(file.size)}
       </div>
 
       {/* Kind column */}
-      <div className={`hidden xl:block text-sm truncate ${isSelected ? 'text-blue-100' : 'text-neutral-500 dark:text-neutral-500'}`}>
+      <div className={`text-[13px] truncate ${isSelected ? 'text-blue-100' : 'text-neutral-500 dark:text-neutral-500'}`}>
         {file.kind}
       </div>
     </div>
