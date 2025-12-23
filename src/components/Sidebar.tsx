@@ -75,136 +75,269 @@ const SharedIcon = () => (
 )
 
 export default function Sidebar({ favorites = [], currentPath, onNavigate, loading, homePath }: SidebarProps) {
+
   if (loading || !favorites) {
+
     return (
-      <div className="w-60 bg-neutral-100 dark:bg-[#1e1e1e] border-r border-neutral-200 dark:border-[#333] pt-10 flex-shrink-0">
+
+      <div className="w-60 bg-neutral-100/50 dark:bg-[#1e1e1e]/40 border-r border-neutral-200/50 dark:border-white/10 pt-10 flex-shrink-0 backdrop-blur-md">
+
         <div className="h-11 w-full drag-region flex-shrink-0" />
+
         <div className="px-5 py-2 text-xs text-neutral-400">Loading...</div>
+
       </div>
+
     )
+
   }
 
+
+
   // Define sections
+
   const specialFavorites = [
-    { name: 'AirDrop', path: `${homePath}/Downloads`, icon: AirDropIcon, special: true }, // Mapped to Downloads for now
-    { name: 'Recents', path: homePath, icon: RecentsIcon, special: true }, // Mapped to Home for now
+
+    { name: 'AirDrop', path: `${homePath}/Downloads`, icon: AirDropIcon, special: true },
+
+    { name: 'Recents', path: homePath, icon: RecentsIcon, special: true },
+
   ]
+
+
 
   const iCloudItems = [
+
     { name: 'iCloud Drive', path: `${homePath}/Library/Mobile Documents/com~apple~CloudDocs`, icon: CloudIcon },
+
     { name: 'Documents', path: `${homePath}/Documents`, icon: DocumentIcon },
+
     { name: 'Shared', path: `/Users/Shared`, icon: SharedIcon },
+
   ]
+
+
 
   const locationItems = [
+
     { name: 'Macintosh HD', path: '/', icon: DiskIcon }
+
   ]
 
-  // Filter out duplicates from system favorites if we are hardcoding them
-  // (e.g. if user has Documents in favorites, we might want to keep it there or dedupe)
-  // For now, we'll dedupe common names to avoid confusion
+
+
+  // Filter out duplicates
+
   const cleanFavorites = favorites.filter(f => 
+
     !['iCloud Drive', 'Documents', 'Macintosh HD', 'Recents', 'AirDrop'].includes(f.name)
+
   )
+
+
 
   const renderSection = (title: string, items: { name: string; path: string; icon: any }[]) => (
-    <div>
-      <h3 className="px-3 mb-1 text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wide select-none group flex items-center justify-between">
+
+    <div className="mb-4">
+
+      <h3 className="px-4 mb-2 text-[10px] font-bold text-neutral-400/80 dark:text-neutral-500/80 uppercase tracking-widest select-none flex items-center justify-between">
+
         <span>{title}</span>
-        {/* Simplified disclosure indicator */}
+
       </h3>
-      <ul className="space-y-0.5">
+
+      <ul className="space-y-0.5 px-2">
+
         {items.map((item) => {
+
           const isActive = currentPath === item.path
 
+
+
           return (
+
             <li key={item.path}>
+
               <button
+
                 onClick={() => onNavigate(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-all duration-75 group
+
+                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-[6px] text-[13px] transition-all duration-100 group
+
                   ${isActive
-                    ? 'bg-neutral-300/50 dark:bg-white/10 text-neutral-900 dark:text-white font-medium'
-                    : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/50 dark:hover:bg-white/5'
+
+                    ? 'bg-black/10 dark:bg-white/10 text-neutral-900 dark:text-white font-medium'
+
+                    : 'text-neutral-600 dark:text-neutral-400 hover:bg-black/5 dark:hover:bg-white/5'
+
                   }`}
+
                 title={item.path}
+
               >
-                <span className={`transition-colors ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-neutral-400 group-hover:text-neutral-500 dark:text-neutral-500 dark:group-hover:text-neutral-400'}`}>
+
+                <span className={`transition-colors duration-200 ${isActive ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#007AFF]/80 dark:text-[#0A84FF]/80 group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF]'}`}>
+
                   <item.icon />
+
                 </span>
-                <span className="truncate">{item.name}</span>
+
+                <span className="truncate leading-none pt-0.5">{item.name}</span>
+
               </button>
+
             </li>
+
           )
+
         })}
+
       </ul>
+
     </div>
+
   )
+
+
 
   return (
-    <div className="w-60 bg-neutral-100/90 dark:bg-[#1e1e1e]/90 border-r border-neutral-200 dark:border-[#333] flex-shrink-0 flex flex-col backdrop-blur-xl">
+
+    <div className="w-60 bg-neutral-100/50 dark:bg-[#252525]/30 border-r border-neutral-200/50 dark:border-black/20 flex-shrink-0 flex flex-col backdrop-blur-xl">
+
       {/* Draggable top area for traffic lights */}
-      <div className="h-10 w-full drag-region flex-shrink-0" />
+
+      <div className="h-12 w-full drag-region flex-shrink-0" />
+
       
-      <div className="flex-1 overflow-y-auto py-2 px-3 space-y-6">
+
+      <div className="flex-1 overflow-y-auto py-1 space-y-2 no-scrollbar">
+
         
+
         {/* Favorites Section */}
-        <div>
-          <h3 className="px-3 mb-1 text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wide select-none">
+
+        <div className="mb-4">
+
+          <h3 className="px-4 mb-2 text-[10px] font-bold text-neutral-400/80 dark:text-neutral-500/80 uppercase tracking-widest select-none">
+
             Favorites
+
           </h3>
-          <ul className="space-y-0.5">
+
+          <ul className="space-y-0.5 px-2">
+
             {/* Special Items */}
-            {specialFavorites.map((item) => (
-               <li key={item.name}>
-               <button
-                 onClick={() => onNavigate(item.path)}
-                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-all duration-75 group
-                   ${currentPath === item.path
-                     ? 'bg-neutral-300/50 dark:bg-white/10 text-neutral-900 dark:text-white font-medium'
-                     : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/50 dark:hover:bg-white/5'
-                   }`}
-               >
-                 <span className="text-blue-500 dark:text-blue-400">
-                   <item.icon />
-                 </span>
-                 <span className="truncate">{item.name}</span>
-               </button>
-             </li>
-            ))}
+
+            {specialFavorites.map((item) => {
+
+               const isActive = currentPath === item.path
+
+               return (
+
+                <li key={item.name}>
+
+                  <button
+
+                    onClick={() => onNavigate(item.path)}
+
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-[6px] text-[13px] transition-all duration-100 group
+
+                      ${isActive
+
+                        ? 'bg-black/10 dark:bg-white/10 text-neutral-900 dark:text-white font-medium'
+
+                        : 'text-neutral-600 dark:text-neutral-400 hover:bg-black/5 dark:hover:bg-white/5'
+
+                      }`}
+
+                  >
+
+                    <span className={`transition-colors duration-200 ${isActive ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#007AFF]/80 dark:text-[#0A84FF]/80 group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF]'}`}>
+
+                      <item.icon />
+
+                    </span>
+
+                    <span className="truncate leading-none pt-0.5">{item.name}</span>
+
+                  </button>
+
+                </li>
+
+               )
+
+            })}
+
             
+
             {/* System Favorites */}
+
             {cleanFavorites.map((favorite) => {
+
               const isActive = currentPath === favorite.path
 
+
+
               return (
+
                 <li key={favorite.path}>
+
                   <button
+
                     onClick={() => onNavigate(favorite.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-all duration-75 group
+
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-[6px] text-[13px] transition-all duration-100 group
+
                       ${isActive
-                        ? 'bg-neutral-300/50 dark:bg-white/10 text-neutral-900 dark:text-white font-medium'
-                        : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/50 dark:hover:bg-white/5'
+
+                        ? 'bg-black/10 dark:bg-white/10 text-neutral-900 dark:text-white font-medium'
+
+                        : 'text-neutral-600 dark:text-neutral-400 hover:bg-black/5 dark:hover:bg-white/5'
+
                       }`}
+
                     title={favorite.path}
+
                   >
-                    <span className={`transition-colors ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-neutral-400 group-hover:text-neutral-500 dark:text-neutral-500 dark:group-hover:text-neutral-400'}`}>
+
+                    <span className={`transition-colors duration-200 ${isActive ? 'opacity-100' : 'opacity-90 group-hover:opacity-100'}`}>
+
                       <FolderIcon />
+
                     </span>
-                    <span className="truncate">{favorite.name}</span>
+
+                    <span className="truncate leading-none pt-0.5">{favorite.name}</span>
+
                   </button>
+
                 </li>
+
               )
+
             })}
+
           </ul>
+
         </div>
 
+
+
         {/* iCloud Section */}
+
         {renderSection('iCloud', iCloudItems)}
 
+
+
         {/* Locations Section */}
+
         {renderSection('Locations', locationItems)}
 
+
+
       </div>
+
     </div>
+
   )
+
 }
