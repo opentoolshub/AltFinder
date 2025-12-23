@@ -473,6 +473,38 @@ ipcMain.handle('pins:remove', (_, dirPath: string, filePath: string) => {
   return pins[dirPath] || []
 })
 
+// Get all pinned files across all directories
+ipcMain.handle('pins:getAll', async () => {
+  const pins = store.get('pinnedFiles')
+  const allPinned: { file: FileInfo; sourceDir: string }[] = []
+
+  for (const [dirPath, filePaths] of Object.entries(pins)) {
+    for (const filePath of filePaths as string[]) {
+      try {
+        const stats = await fs.stat(filePath)
+        const name = path.basename(filePath)
+        allPinned.push({
+          file: {
+            name,
+            path: filePath,
+            isDirectory: stats.isDirectory(),
+            size: stats.size,
+            modifiedTime: stats.mtimeMs,
+            createdTime: stats.birthtimeMs,
+            kind: getFileKind(name, stats.isDirectory()),
+            extension: path.extname(name).toLowerCase()
+          },
+          sourceDir: dirPath
+        })
+      } catch {
+        // File no longer exists, skip it
+      }
+    }
+  }
+
+  return allPinned
+})
+
 // Settings
 ipcMain.handle('settings:getShowHiddenFiles', () => store.get('showHiddenFiles'))
 ipcMain.handle('settings:setShowHiddenFiles', (_, value: boolean) => {

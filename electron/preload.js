@@ -36,6 +36,8 @@ const electronAPI = {
     ipcRenderer.invoke('pins:add', dirPath, filePath),
   removePinnedFile: (dirPath, filePath) =>
     ipcRenderer.invoke('pins:remove', dirPath, filePath),
+  getAllPinnedFiles: () =>
+    ipcRenderer.invoke('pins:getAll'),
 
   // Settings
   getShowHiddenFiles: () =>

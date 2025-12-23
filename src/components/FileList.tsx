@@ -20,6 +20,11 @@ interface SortConfig {
   direction: SortDirection
 }
 
+interface PinnedFileWithSource {
+  file: FileInfo
+  sourceDir: string
+}
+
 interface FileListProps {
   files: FileInfo[]
   pinnedFiles: FileInfo[]
@@ -37,6 +42,9 @@ interface FileListProps {
   onCancelCreate: () => void
   pinnedPaths: string[]
   loading: boolean
+  isAllPinnedView?: boolean
+  allPinnedFiles?: PinnedFileWithSource[]
+  onNavigateToFolder?: (path: string) => void
 }
 
 const SortIcon = ({ direction }: { direction: 'asc' | 'desc' | null }) => {
@@ -93,7 +101,10 @@ export default function FileList({
   onCreateFolder,
   onCancelCreate,
   pinnedPaths,
-  loading
+  loading,
+  isAllPinnedView = false,
+  allPinnedFiles = [],
+  onNavigateToFolder
 }: FileListProps) {
   const [newFolderName, setNewFolderName] = useState('untitled folder')
   const newFolderInputRef = useRef<HTMLInputElement>(null)
@@ -128,6 +139,98 @@ export default function FileList({
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
           <span className="text-[13px]">Loading...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // All Pinned View
+  if (isAllPinnedView) {
+    // Group files by source directory
+    const groupedByDir: Record<string, { file: FileInfo; sourceDir: string }[]> = {}
+    for (const item of allPinnedFiles) {
+      if (!groupedByDir[item.sourceDir]) {
+        groupedByDir[item.sourceDir] = []
+      }
+      groupedByDir[item.sourceDir].push(item)
+    }
+
+    const dirPaths = Object.keys(groupedByDir).sort()
+
+    if (allPinnedFiles.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 text-neutral-400 dark:text-neutral-500">
+          <svg className="w-16 h-16 mb-4 text-amber-200 dark:text-amber-900/50" viewBox="0 0 64 64" fill="none">
+            <path d="M32 8L40 24H56L44 36L48 56L32 46L16 56L20 36L8 24H24L32 8Z" fill="currentColor" stroke="currentColor" strokeWidth="2" />
+          </svg>
+          <p className="text-[13px] font-medium">No pinned files yet</p>
+          <p className="text-[12px] text-neutral-400 dark:text-neutral-600 mt-1">Right-click files to pin them</p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="w-full min-w-full pb-4">
+        {/* Header */}
+        <div className={`sticky top-0 z-10 py-2.5 bg-white/90 dark:bg-[#151515]/90 backdrop-blur-xl border-b border-neutral-200/80 dark:border-white/5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide ${gridClass}`}>
+          <span className="pl-1">Name</span>
+          <span>Date Modified</span>
+          <span className="text-right">Size</span>
+          <span>Kind</span>
+        </div>
+
+        <div className="pt-1 px-2">
+          {dirPaths.map((dirPath) => {
+            const items = groupedByDir[dirPath]
+            const dirName = dirPath.split('/').pop() || dirPath
+
+            return (
+              <div key={dirPath} className="mb-4">
+                {/* Directory header */}
+                <button
+                  onClick={() => onNavigateToFolder?.(dirPath)}
+                  className="px-4 py-2 text-[11px] font-semibold text-neutral-500 dark:text-neutral-500 uppercase tracking-wide flex items-center gap-2 hover:text-[#0A84FF] transition-colors group w-full text-left"
+                  title={`Go to ${dirPath}`}
+                >
+                  <svg className="w-3.5 h-3.5 text-[#007AFF] group-hover:text-[#0A84FF]" viewBox="0 0 20 20" fill="none">
+                    <defs>
+                      <linearGradient id={`folderGrad-${dirPath.replace(/\//g, '-')}`} x1="0" y1="0" x2="0" y2="20" gradientUnits="userSpaceOnUse">
+                        <stop offset="0" stopColor="#5AC8FA" />
+                        <stop offset="1" stopColor="#007AFF" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" fill={`url(#folderGrad-${dirPath.replace(/\//g, '-')})`} />
+                  </svg>
+                  <span className="truncate">{dirName}</span>
+                  <span className="text-neutral-400 dark:text-neutral-600 font-normal normal-case">
+                    ({items.length})
+                  </span>
+                  <svg className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                {/* Files in this directory */}
+                {items.map(({ file }) => (
+                  <FileRow
+                    key={file.path}
+                    file={file}
+                    isSelected={selectedFiles.has(file.path)}
+                    isPinned={true}
+                    isRenaming={renaming === file.path}
+                    onSelect={onSelect}
+                    onOpen={onOpen}
+                    onContextMenu={onContextMenu}
+                    onRename={onRename}
+                    onCancelRename={onCancelRename}
+                    formatSize={formatFileSize}
+                    formatDate={formatDate}
+                    gridClass={gridClass}
+                  />
+                ))}
+              </div>
+            )
+          })}
         </div>
       </div>
     )

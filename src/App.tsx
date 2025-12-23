@@ -55,6 +55,8 @@ function App() {
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [loading, setLoading] = useState(true)
   const [homePath, setHomePath] = useState<string>('/')
+  const [isAllPinnedView, setIsAllPinnedView] = useState(false)
+  const [allPinnedFiles, setAllPinnedFiles] = useState<{ file: FileInfo; sourceDir: string }[]>([])
   const fileListRef = useRef<HTMLDivElement>(null)
 
   // Initialize
@@ -169,6 +171,7 @@ function App() {
   }
 
   const navigateTo = useCallback((path: string, initial = false) => {
+    setIsAllPinnedView(false)
     if (initial) {
       setHistory([path])
       setHistoryIndex(0)
@@ -184,6 +187,28 @@ function App() {
     setRenaming(null)
     setCreatingFolder(false)
   }, [history, historyIndex])
+
+  const loadAllPinned = useCallback(async () => {
+    if (!window.electron) return
+    setLoading(true)
+    try {
+      const pinned = await window.electron.getAllPinnedFiles()
+      setAllPinnedFiles(pinned)
+    } catch (error) {
+      console.error('Failed to load all pinned files:', error)
+      setAllPinnedFiles([])
+    }
+    setLoading(false)
+  }, [])
+
+  const showAllPinned = useCallback(() => {
+    setIsAllPinnedView(true)
+    setSelectedFiles(new Set())
+    setSearchQuery('')
+    setRenaming(null)
+    setCreatingFolder(false)
+    loadAllPinned()
+  }, [loadAllPinned])
 
   const goBack = useCallback(() => {
     if (historyIndex > 0) {
@@ -431,6 +456,8 @@ function App() {
         onNavigate={navigateTo}
         loading={favoritesLoading}
         homePath={homePath}
+        isAllPinnedView={isAllPinnedView}
+        onShowAllPinned={showAllPinned}
       />
 
       {/* Main content */}
@@ -445,8 +472,26 @@ function App() {
           onSearchChange={setSearchQuery}
         />
 
-        {/* Path bar */}
-        <PathBar path={currentPath} onNavigate={navigateTo} />
+        {/* Path bar or All Pinned header */}
+        {isAllPinnedView ? (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-xl border-b border-neutral-200/60 dark:border-white/5">
+            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
+              <defs>
+                <linearGradient id="pinnedHeaderGradient" x1="10" y1="2" x2="10" y2="18" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stopColor="#FBBF24" />
+                  <stop offset="1" stopColor="#F59E0B" />
+                </linearGradient>
+              </defs>
+              <path d="M10 2L12.5 7.5H18L13.5 11.5L15.5 18L10 14L4.5 18L6.5 11.5L2 7.5H7.5L10 2Z" fill="url(#pinnedHeaderGradient)" stroke="rgba(0,0,0,0.1)" strokeWidth="0.5" />
+            </svg>
+            <span className="text-[14px] font-semibold text-neutral-800 dark:text-neutral-100">All Pinned Files</span>
+            <span className="text-[13px] text-neutral-500 dark:text-neutral-400 ml-1">
+              ({allPinnedFiles.length} {allPinnedFiles.length === 1 ? 'item' : 'items'})
+            </span>
+          </div>
+        ) : (
+          <PathBar path={currentPath} onNavigate={navigateTo} />
+        )}
 
         {/* File list */}
         <div
@@ -458,14 +503,14 @@ function App() {
             }
           }}
           onContextMenu={(e) => {
-            if (e.target === fileListRef.current) {
+            if (e.target === fileListRef.current && !isAllPinnedView) {
               handleContextMenu(e, null)
             }
           }}
         >
           <FileList
-            files={sortedFiles}
-            pinnedFiles={filteredPinnedFiles}
+            files={isAllPinnedView ? [] : sortedFiles}
+            pinnedFiles={isAllPinnedView ? [] : filteredPinnedFiles}
             selectedFiles={selectedFiles}
             sortConfig={sortConfig}
             onSort={handleSort}
@@ -480,6 +525,9 @@ function App() {
             onCancelCreate={() => setCreatingFolder(false)}
             pinnedPaths={pinnedPaths}
             loading={loading}
+            isAllPinnedView={isAllPinnedView}
+            allPinnedFiles={allPinnedFiles}
+            onNavigateToFolder={navigateTo}
           />
         </div>
       </div>

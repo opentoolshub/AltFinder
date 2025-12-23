@@ -9,6 +9,8 @@ interface SidebarProps {
   onNavigate: (path: string) => void
   loading: boolean
   homePath: string
+  isAllPinnedView: boolean
+  onShowAllPinned: () => void
 }
 
 const FolderIcon = () => (
@@ -110,7 +112,19 @@ const SharedIcon = () => (
   </svg>
 )
 
-export default function Sidebar({ favorites = [], currentPath, onNavigate, loading, homePath }: SidebarProps) {
+const PinnedIcon = () => (
+  <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="none">
+    <defs>
+      <linearGradient id="pinnedGradient" x1="10" y1="2" x2="10" y2="18" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stopColor="#FBBF24" />
+        <stop offset="1" stopColor="#F59E0B" />
+      </linearGradient>
+    </defs>
+    <path d="M10 2L12.5 7.5H18L13.5 11.5L15.5 18L10 14L4.5 18L6.5 11.5L2 7.5H7.5L10 2Z" fill="url(#pinnedGradient)" stroke="rgba(0,0,0,0.1)" strokeWidth="0.5" />
+  </svg>
+)
+
+export default function Sidebar({ favorites = [], currentPath, onNavigate, loading, homePath, isAllPinnedView, onShowAllPinned }: SidebarProps) {
 
   if (loading || !favorites) {
     return (
@@ -171,7 +185,7 @@ export default function Sidebar({ favorites = [], currentPath, onNavigate, loadi
       </h3>
       <ul className="space-y-px px-2">
         {items.map((item) => {
-          const isActive = currentPath === item.path
+          const isActive = !isAllPinnedView && currentPath === item.path
           return (
             <li key={item.path}>
               <button
@@ -209,9 +223,26 @@ export default function Sidebar({ favorites = [], currentPath, onNavigate, loadi
             Favorites
           </h3>
           <ul className="space-y-px px-2">
+            {/* All Pinned */}
+            <li>
+              <button
+                onClick={onShowAllPinned}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] transition-all duration-100 group
+                  ${isAllPinnedView
+                    ? 'bg-black/8 dark:bg-white/10 text-neutral-900 dark:text-white font-medium shadow-sm'
+                    : 'text-neutral-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+              >
+                <span className="flex-shrink-0">
+                  <PinnedIcon />
+                </span>
+                <span className="truncate">All Pinned</span>
+              </button>
+            </li>
+
             {/* Special Items */}
             {specialFavorites.map((item) => {
-              const isActive = currentPath === item.path
+              const isActive = !isAllPinnedView && currentPath === item.path
               return (
                 <li key={item.name}>
                   <button
@@ -233,7 +264,7 @@ export default function Sidebar({ favorites = [], currentPath, onNavigate, loadi
 
             {/* System Favorites */}
             {cleanFavorites.map((favorite) => {
-              const isActive = currentPath === favorite.path
+              const isActive = !isAllPinnedView && currentPath === favorite.path
               return (
                 <li key={favorite.path}>
                   <button
