@@ -60,7 +60,6 @@ function App() {
   const [allPinnedFiles, setAllPinnedFiles] = useState<{ file: FileInfo; sourceDir: string }[]>([])
   const fileListRef = useRef<HTMLDivElement>(null)
   const loadIdRef = useRef<number>(0) // Track current load to cancel stale loads
-  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null) // Debounce rapid navigation
 
   // Load favorites with error handling
   const loadFavorites = useCallback(async () => {
@@ -144,26 +143,13 @@ function App() {
     }
   }, [])
 
-  // Load directory when path or showHiddenFiles changes (debounced for rapid navigation)
+  // Load directory when path or showHiddenFiles changes
   useEffect(() => {
     if (currentPath) {
-      // Cancel any pending load
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current)
-      }
       // Increment load ID immediately to cancel any in-flight loads
       loadIdRef.current++
-      // Don't show loading spinner - fast load is nearly instant
-      // The previous files will show briefly then be replaced
-      // Debounce the actual load by 50ms to handle rapid clicks
-      loadTimeoutRef.current = setTimeout(() => {
-        loadDirectory(currentPath)
-      }, 50)
-    }
-    return () => {
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current)
-      }
+      // Load immediately - no debounce needed since load cancellation handles rapid clicks
+      loadDirectory(currentPath)
     }
   }, [currentPath, showHiddenFiles])
 
