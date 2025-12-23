@@ -148,7 +148,9 @@ function App() {
     if (currentPath) {
       // Increment load ID immediately to cancel any in-flight loads
       loadIdRef.current++
-      // Load immediately - no debounce needed since load cancellation handles rapid clicks
+      // Show loading spinner for feedback
+      setLoading(true)
+      // Load immediately
       loadDirectory(currentPath)
     }
   }, [currentPath, showHiddenFiles])
@@ -162,13 +164,12 @@ function App() {
     // Increment load ID to cancel any in-progress loads
     const thisLoadId = ++loadIdRef.current
 
-    // Don't set loading=true here - fast load is nearly instant (<50ms)
-    // This keeps the UI responsive during navigation
     setLoadingMore(false)
     try {
-      // FAST: Load file list (no stat calls), sort config, and pinned paths in parallel
-      const [fastFiles, savedSort, pins] = await Promise.all([
-        window.electron.readDirectoryFast(dirPath, showHiddenFiles),
+      // FAST: Load first batch of files (no stat), sort config, and pinned paths in parallel
+      const INITIAL_LIMIT = 200
+      const [fastResult, savedSort, pins] = await Promise.all([
+        window.electron.readDirectoryFast(dirPath, showHiddenFiles, INITIAL_LIMIT),
         window.electron.getSortOrder(dirPath),
         window.electron.getPinnedFiles(dirPath)
       ])
@@ -176,15 +177,17 @@ function App() {
       // Check if this load was cancelled
       if (thisLoadId !== loadIdRef.current) return
 
+      const { files: initialFiles, total, hasMore } = fastResult
+
       // Show files immediately (with placeholder size/date)
-      setFiles(fastFiles)
-      setTotalItems(fastFiles.length)
+      setFiles(initialFiles)
+      setTotalItems(total)
       setSortConfig(savedSort)
       setPinnedPaths(pins)
-      setLoading(false) // UI is now responsive!
+      setLoading(false) // Hide spinner - first batch is visible!
 
-      // Load pinned files info in parallel
-      const pinnedResults = await Promise.all(
+      // Load pinned files info in parallel (don't block on this)
+      Promise.all(
         pins.map(async (pinPath) => {
           const exists = await window.electron.exists(pinPath)
           if (exists) {
@@ -192,15 +195,29 @@ function App() {
           }
           return null
         })
-      )
-      if (thisLoadId !== loadIdRef.current) return
-      setPinnedFiles(pinnedResults.filter((f): f is FileInfo => f !== null))
+      ).then(pinnedResults => {
+        if (thisLoadId !== loadIdRef.current) return
+        setPinnedFiles(pinnedResults.filter((f): f is FileInfo => f !== null))
+      })
+
+      // Track all files for metadata loading
+      let allFiles = initialFiles
+
+      // Load remaining files in background if there are more
+      if (hasMore) {
+        setLoadingMore(true)
+        const { files: remainingFiles } = await window.electron.readDirectoryFast(dirPath, showHiddenFiles)
+        if (thisLoadId !== loadIdRef.current) return
+        allFiles = remainingFiles
+        setFiles(allFiles)
+        setTotalItems(allFiles.length)
+      }
 
       // Load metadata in background batches
-      if (fastFiles.length > 0) {
-        setLoadingMore(true)
-        const BATCH_SIZE = 50
-        const filePaths = fastFiles.map(f => f.path)
+      if (allFiles.length > 0) {
+        if (!hasMore) setLoadingMore(true)
+        const BATCH_SIZE = 100
+        const filePaths = allFiles.map(f => f.path)
 
         for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
           if (thisLoadId !== loadIdRef.current) return

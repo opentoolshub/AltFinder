@@ -37,7 +37,7 @@ declare global {
   interface Window {
     electron: {
       readDirectory: (dirPath: string, showHidden: boolean) => Promise<FileInfo[]>
-      readDirectoryFast: (dirPath: string, showHidden: boolean) => Promise<FileInfo[]>
+      readDirectoryFast: (dirPath: string, showHidden: boolean, limit?: number) => Promise<{ files: FileInfo[]; total: number; hasMore: boolean }>
       getFilesMetadata: (filePaths: string[]) => Promise<Record<string, { size: number; modifiedTime: number; createdTime: number }>>
       readDirectoryWithMeta: (dirPath: string, showHidden: boolean, limit?: number) => Promise<{ files: FileInfo[]; total: number; hasMore: boolean }>
       getHomeDir: () => Promise<string>

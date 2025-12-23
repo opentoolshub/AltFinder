@@ -119,14 +119,18 @@ function getFileKind(name: string, isDirectory: boolean): string {
 }
 
 // Fast directory read - no stat calls, just basic info from readdir
-async function readDirectoryFast(dirPath: string, showHidden: boolean): Promise<FileInfo[]> {
+async function readDirectoryFast(dirPath: string, showHidden: boolean, limit?: number): Promise<{ files: FileInfo[]; total: number; hasMore: boolean }> {
   const entries = await fs.readdir(dirPath, { withFileTypes: true })
 
   const filteredEntries = showHidden
     ? entries
     : entries.filter(e => !e.name.startsWith('.'))
 
-  return filteredEntries.map((entry) => ({
+  const total = filteredEntries.length
+  const entriesToProcess = limit ? filteredEntries.slice(0, limit) : filteredEntries
+  const hasMore = limit ? filteredEntries.length > limit : false
+
+  const files = entriesToProcess.map((entry) => ({
     name: entry.name,
     path: path.join(dirPath, entry.name),
     isDirectory: entry.isDirectory(),
@@ -136,6 +140,8 @@ async function readDirectoryFast(dirPath: string, showHidden: boolean): Promise<
     kind: getFileKind(entry.name, entry.isDirectory()),
     extension: path.extname(entry.name).toLowerCase()
   }))
+
+  return { files, total, hasMore }
 }
 
 // Get metadata for a batch of files
@@ -468,8 +474,8 @@ ipcMain.handle('fs:readDirectory', async (_, dirPath: string, showHidden: boolea
   return readDirectory(dirPath, showHidden, limit)
 })
 
-ipcMain.handle('fs:readDirectoryFast', async (_, dirPath: string, showHidden: boolean) => {
-  return readDirectoryFast(dirPath, showHidden)
+ipcMain.handle('fs:readDirectoryFast', async (_, dirPath: string, showHidden: boolean, limit?: number) => {
+  return readDirectoryFast(dirPath, showHidden, limit)
 })
 
 ipcMain.handle('fs:getFilesMetadata', async (_, filePaths: string[]) => {
