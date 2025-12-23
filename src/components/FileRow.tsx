@@ -27,17 +27,17 @@ interface FileRowProps {
 }
 
 const FolderIcon = () => (
-  <svg className="w-[18px] h-[18px] drop-shadow-sm" viewBox="0 0 20 20" fill="none">
+  <svg className="w-[20px] h-[20px]" viewBox="0 0 20 20" fill="none">
     <defs>
       <linearGradient id="folderGradientRow" x1="0" y1="0" x2="0" y2="20" gradientUnits="userSpaceOnUse">
         <stop offset="0" stopColor="#5AC8FA" />
         <stop offset="1" stopColor="#007AFF" />
       </linearGradient>
     </defs>
-    <path 
-      d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" 
+    <path
+      d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
       fill="url(#folderGradientRow)"
-      stroke="rgba(0,0,0,0.1)" 
+      stroke="rgba(0,0,0,0.08)"
       strokeWidth="0.5"
     />
   </svg>
@@ -45,30 +45,36 @@ const FolderIcon = () => (
 
 const FileIcon = ({ extension }: { extension: string }) => {
   // Color based on file type
-  let color = 'text-neutral-400'
-  if (['.js', '.ts', '.jsx', '.tsx'].includes(extension)) color = 'text-[#F1C40F]'
-  else if (['.json', '.xml', '.yaml', '.yml'].includes(extension)) color = 'text-[#E67E22]'
-  else if (['.html', '.htm'].includes(extension)) color = 'text-[#E74C3C]'
-  else if (['.css', '.scss', '.less'].includes(extension)) color = 'text-[#3498DB]'
-  else if (['.py'].includes(extension)) color = 'text-[#2ECC71]'
-  else if (['.md', '.txt', '.doc', '.docx'].includes(extension)) color = 'text-neutral-400'
-  else if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'].includes(extension)) color = 'text-[#E91E63]'
-  else if (['.mp3', '.wav', '.m4a'].includes(extension)) color = 'text-[#9B59B6]'
-  else if (['.mp4', '.mov', '.avi', '.mkv'].includes(extension)) color = 'text-[#3F51B5]'
-  else if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(extension)) color = 'text-[#D35400]'
-  else if (['.pdf'].includes(extension)) color = 'text-[#C0392B]'
+  let fillColor = '#9CA3AF'
+  if (['.js', '.ts', '.jsx', '.tsx'].includes(extension)) fillColor = '#EAB308'
+  else if (['.json', '.xml', '.yaml', '.yml'].includes(extension)) fillColor = '#F97316'
+  else if (['.html', '.htm'].includes(extension)) fillColor = '#EF4444'
+  else if (['.css', '.scss', '.less'].includes(extension)) fillColor = '#3B82F6'
+  else if (['.py'].includes(extension)) fillColor = '#22C55E'
+  else if (['.md', '.txt', '.doc', '.docx'].includes(extension)) fillColor = '#9CA3AF'
+  else if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'].includes(extension)) fillColor = '#EC4899'
+  else if (['.mp3', '.wav', '.m4a'].includes(extension)) fillColor = '#A855F7'
+  else if (['.mp4', '.mov', '.avi', '.mkv'].includes(extension)) fillColor = '#6366F1'
+  else if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(extension)) fillColor = '#EA580C'
+  else if (['.pdf'].includes(extension)) fillColor = '#DC2626'
 
   return (
-    <svg className={`w-[18px] h-[18px] ${color} fill-current drop-shadow-sm`} viewBox="0 0 20 20">
-      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+    <svg className="w-[20px] h-[20px]" viewBox="0 0 20 20" fill="none">
+      <path
+        d="M5 3C5 2.44772 5.44772 2 6 2H11L15 6V17C15 17.5523 14.5523 18 14 18H6C5.44772 18 5 17.5523 5 17V3Z"
+        fill={fillColor}
+        stroke="rgba(0,0,0,0.08)"
+        strokeWidth="0.5"
+      />
+      <path d="M11 2V6H15" fill="rgba(255,255,255,0.2)" />
     </svg>
   )
 }
 
 const PinIcon = () => (
-  <svg className="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
-    <path d="M5 5a2 2 0 012-2h6a2 2 0 012 2v2a2 2 0 01-2 2H7a2 2 0 01-2-2V5z" />
-    <path d="M10 10.5a.5.5 0 01.5.5v5a.5.5 0 01-1 0v-5a.5.5 0 01.5-.5z" />
+  <svg className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+    <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
   </svg>
 )
 
@@ -133,21 +139,20 @@ export default function FileRow({
   return (
     <div
       className={`
-        relative group cursor-default select-none py-1.5 transition-colors duration-75 w-full
+        relative group cursor-default select-none py-[7px] transition-all duration-75 w-full
         ${gridClass || 'flex items-center gap-4 px-4'}
         ${isSelected
-          ? 'bg-blue-600 text-white shadow-sm'
-          : 'hover:bg-neutral-100 dark:hover:bg-white/5 text-neutral-700 dark:text-neutral-300 odd:bg-transparent even:bg-neutral-50/30 dark:even:bg-white/[0.02]'
+          ? 'bg-[#0A84FF] text-white rounded-md'
+          : 'hover:bg-neutral-100 dark:hover:bg-white/[0.06] text-neutral-800 dark:text-neutral-200 rounded-md'
         }
-        ${isSelected ? 'rounded-md' : 'rounded-md'}
       `}
       onClick={(e) => onSelect(file, e.metaKey || e.ctrlKey)}
       onDoubleClick={() => onOpen(file)}
       onContextMenu={(e) => onContextMenu(e, file)}
     >
       {/* Name column */}
-      <div className="flex items-center gap-3 overflow-hidden min-w-0 w-full pl-1">
-        <div className="flex-shrink-0 opacity-90">
+      <div className="flex items-center gap-2.5 overflow-hidden min-w-0 w-full">
+        <div className="flex-shrink-0">
           {file.isDirectory ? <FolderIcon /> : <FileIcon extension={file.extension} />}
         </div>
 
@@ -160,27 +165,31 @@ export default function FileRow({
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-[50px] px-1.5 py-0.5 text-sm bg-white dark:bg-[#252525] text-neutral-900 dark:text-white border border-blue-500 rounded shadow-sm focus:outline-none"
+            className="flex-1 min-w-[50px] px-2 py-1 text-[13px] bg-white dark:bg-[#2a2a2a] text-neutral-900 dark:text-white border border-[#0A84FF] rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/30"
           />
         ) : (
-          <span className="truncate text-[13px] font-medium leading-tight">{file.name}</span>
+          <span className="truncate text-[13px] font-medium">{file.name}</span>
         )}
 
-        {isPinned && !isRenaming && <PinIcon />}
+        {isPinned && !isRenaming && (
+          <span className="flex-shrink-0 ml-1">
+            <PinIcon />
+          </span>
+        )}
       </div>
 
       {/* Date column */}
-      <div className={`text-[13px] truncate ${isSelected ? 'text-blue-100' : 'text-neutral-500 dark:text-neutral-500'}`}>
+      <div className={`text-[13px] truncate tabular-nums ${isSelected ? 'text-white/80' : 'text-neutral-500 dark:text-neutral-500'}`}>
         {formatDate(file.modifiedTime)}
       </div>
 
       {/* Size column */}
-      <div className={`text-[13px] text-right font-mono opacity-80 ${isSelected ? 'text-blue-100' : 'text-neutral-400 dark:text-neutral-500'}`}>
+      <div className={`text-[13px] text-right tabular-nums ${isSelected ? 'text-white/80' : 'text-neutral-400 dark:text-neutral-500'}`}>
         {file.isDirectory ? '--' : formatSize(file.size)}
       </div>
 
       {/* Kind column */}
-      <div className={`text-[13px] truncate ${isSelected ? 'text-blue-100' : 'text-neutral-500 dark:text-neutral-500'}`}>
+      <div className={`text-[13px] truncate ${isSelected ? 'text-white/80' : 'text-neutral-500 dark:text-neutral-500'}`}>
         {file.kind}
       </div>
     </div>

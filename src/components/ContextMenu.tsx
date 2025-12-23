@@ -131,7 +131,7 @@ export default function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 min-w-[200px] py-1.5 bg-white/95 dark:bg-[#252525]/95 backdrop-blur-xl rounded-lg shadow-xl border border-neutral-200 dark:border-[#444]"
+      className="fixed z-50 min-w-[220px] py-1 bg-white/95 dark:bg-[#2a2a2a]/95 backdrop-blur-2xl rounded-xl shadow-2xl border border-neutral-200/50 dark:border-white/10"
       style={{ left: x, top: y }}
     >
       {items.map((item, index) => {
@@ -139,7 +139,7 @@ export default function ContextMenu({
           return (
             <div
               key={index}
-              className="my-1.5 border-t border-neutral-200 dark:border-[#444]"
+              className="my-1 mx-2 border-t border-neutral-200/60 dark:border-white/10"
             />
           )
         }
@@ -153,15 +153,16 @@ export default function ContextMenu({
               }
             }}
             disabled={item.disabled}
-            className={`w-full px-4 py-1.5 text-left text-[13px] flex items-center justify-between transition-colors
+            className={`w-full px-3 py-[6px] mx-1 text-left text-[13px] flex items-center justify-between transition-all duration-75 rounded-md
               ${item.disabled
                 ? 'text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
-                : 'text-neutral-700 dark:text-neutral-200 hover:bg-blue-600 hover:text-white'
+                : 'text-neutral-800 dark:text-neutral-200 hover:bg-[#0A84FF] hover:text-white'
               }`}
+            style={{ width: 'calc(100% - 8px)' }}
           >
             <span>{item.label}</span>
             {item.shortcut && (
-              <span className={`ml-4 text-xs ${item.disabled ? '' : 'opacity-60'}`}>
+              <span className={`ml-4 text-[11px] tabular-nums ${item.disabled ? 'text-neutral-400 dark:text-neutral-600' : 'text-neutral-400 dark:text-neutral-500'}`}>
                 {item.shortcut}
               </span>
             )}
