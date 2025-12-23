@@ -58,6 +58,7 @@ function App() {
   const [isAllPinnedView, setIsAllPinnedView] = useState(false)
   const [allPinnedFiles, setAllPinnedFiles] = useState<{ file: FileInfo; sourceDir: string }[]>([])
   const fileListRef = useRef<HTMLDivElement>(null)
+  const loadIdRef = useRef<number>(0) // Track current load to cancel stale loads
 
   // Initialize
   useEffect(() => {
@@ -141,62 +142,78 @@ function App() {
 
   const loadDirectory = async (dirPath: string) => {
     if (!window.electron) return
+
+    // Increment load ID to cancel any in-progress loads
+    const thisLoadId = ++loadIdRef.current
+
     setLoading(true)
     setLoadingMore(false)
     try {
-      // Load first 200 items quickly
+      // Load initial files, sort config, and pinned paths in parallel
       const INITIAL_LIMIT = 200
-      const { files: initialFiles, total, hasMore } = await window.electron.readDirectoryWithMeta(dirPath, showHiddenFiles, INITIAL_LIMIT)
+      const [filesResult, savedSort, pins] = await Promise.all([
+        window.electron.readDirectoryWithMeta(dirPath, showHiddenFiles, INITIAL_LIMIT),
+        window.electron.getSortOrder(dirPath),
+        window.electron.getPinnedFiles(dirPath)
+      ])
+
+      // Check if this load was cancelled (user navigated elsewhere)
+      if (thisLoadId !== loadIdRef.current) return
+
+      const { files: initialFiles, total, hasMore } = filesResult
       setFiles(initialFiles)
       setTotalItems(total)
-
-      // Load sort config
-      const savedSort = await window.electron.getSortOrder(dirPath)
       setSortConfig(savedSort)
-
-      // Load pinned files for this directory
-      const pins = await window.electron.getPinnedFiles(dirPath)
       setPinnedPaths(pins)
 
-      // Get FileInfo for each pinned file that still exists
-      const pinnedInfos: FileInfo[] = []
-      for (const pinPath of pins) {
-        const exists = await window.electron.exists(pinPath)
-        if (exists) {
-          const info = await window.electron.getFileInfo(pinPath)
-          pinnedInfos.push(info)
-        }
-      }
-      setPinnedFiles(pinnedInfos)
+      // Get FileInfo for pinned files in parallel
+      const pinnedResults = await Promise.all(
+        pins.map(async (pinPath) => {
+          const exists = await window.electron.exists(pinPath)
+          if (exists) {
+            return window.electron.getFileInfo(pinPath)
+          }
+          return null
+        })
+      )
+
+      if (thisLoadId !== loadIdRef.current) return
+      setPinnedFiles(pinnedResults.filter((f): f is FileInfo => f !== null))
 
       // Load remaining files in background if there are more
       if (hasMore) {
         setLoadingMore(true)
         // Use setTimeout to let UI render first
         setTimeout(async () => {
+          // Check if load was cancelled
+          if (thisLoadId !== loadIdRef.current) return
           try {
             const allFiles = await window.electron.readDirectory(dirPath, showHiddenFiles)
-            // Only update if we're still on the same path
-            setFiles(prev => {
-              // Check if path changed by comparing with current files
-              if (prev.length > 0 && allFiles.length > 0 && prev[0]?.path.startsWith(dirPath)) {
-                return allFiles
-              }
-              return prev
-            })
+            // Only update if this load is still current
+            if (thisLoadId === loadIdRef.current) {
+              setFiles(allFiles)
+            }
           } catch (err) {
             console.error('Failed to load remaining files:', err)
           }
-          setLoadingMore(false)
+          if (thisLoadId === loadIdRef.current) {
+            setLoadingMore(false)
+          }
         }, 50)
+      }
+
+      if (thisLoadId === loadIdRef.current) {
+        setLoading(false)
       }
     } catch (error) {
       console.error('Failed to read directory:', error)
-      setFiles([])
-      setPinnedFiles([])
-      setPinnedPaths([])
+      if (thisLoadId === loadIdRef.current) {
+        setFiles([])
+        setPinnedFiles([])
+        setPinnedPaths([])
+        setLoading(false)
+      }
     }
-    setLoading(false)
   }
 
   const navigateTo = useCallback((path: string, initial = false) => {

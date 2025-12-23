@@ -37,6 +37,7 @@ declare global {
   interface Window {
     electron: {
       readDirectory: (dirPath: string, showHidden: boolean) => Promise<FileInfo[]>
+      readDirectoryWithMeta: (dirPath: string, showHidden: boolean, limit?: number) => Promise<{ files: FileInfo[]; total: number; hasMore: boolean }>
       getHomeDir: () => Promise<string>
       getSpecialPaths: () => Promise<SpecialPaths>
       openFile: (filePath: string) => Promise<string>
@@ -52,6 +53,7 @@ declare global {
       setPinnedFiles: (dirPath: string, pinnedPaths: string[]) => Promise<void>
       addPinnedFile: (dirPath: string, filePath: string) => Promise<string[]>
       removePinnedFile: (dirPath: string, filePath: string) => Promise<string[]>
+      getAllPinnedFiles: () => Promise<{ file: FileInfo; sourceDir: string }[]>
       getShowHiddenFiles: () => Promise<boolean>
       setShowHiddenFiles: (value: boolean) => Promise<void>
       getSortOrder: (dirPath: string) => Promise<SortConfig>
