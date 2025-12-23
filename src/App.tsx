@@ -59,6 +59,7 @@ function App() {
   const [allPinnedFiles, setAllPinnedFiles] = useState<{ file: FileInfo; sourceDir: string }[]>([])
   const fileListRef = useRef<HTMLDivElement>(null)
   const loadIdRef = useRef<number>(0) // Track current load to cancel stale loads
+  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null) // Debounce rapid navigation
 
   // Initialize
   useEffect(() => {
@@ -130,10 +131,26 @@ function App() {
     }
   }, [])
 
-  // Load directory when path or showHiddenFiles changes
+  // Load directory when path or showHiddenFiles changes (debounced for rapid navigation)
   useEffect(() => {
     if (currentPath) {
-      loadDirectory(currentPath)
+      // Cancel any pending load
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current)
+      }
+      // Increment load ID immediately to cancel any in-flight loads
+      loadIdRef.current++
+      // Show loading state immediately for responsiveness
+      setLoading(true)
+      // Debounce the actual load by 50ms to handle rapid clicks
+      loadTimeoutRef.current = setTimeout(() => {
+        loadDirectory(currentPath)
+      }, 50)
+    }
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current)
+      }
     }
   }, [currentPath, showHiddenFiles])
 
