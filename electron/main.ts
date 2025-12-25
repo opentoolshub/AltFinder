@@ -31,10 +31,18 @@ interface FileInfo {
 }
 
 interface StoreSchema {
-  pinnedFiles: Record<string, string[]>
+  pinnedFiles: Record<string, string[]>  // Legacy - kept for migration
   windowBounds: { width: number; height: number; x?: number; y?: number }
   showHiddenFiles: boolean
   folderSort: Record<string, { field: string; direction: string }>
+  migratedToManifest: boolean  // Track if we've migrated legacy pins
+  pinnedDirectories: string[]  // Index of directories that have manifests
+}
+
+// Manifest file structure for .altfinder.json
+interface AltFinderManifest {
+  version: 1
+  pinned: string[]  // Array of filenames (not full paths, just names)
 }
 
 const store = new Store<StoreSchema>({
@@ -42,9 +50,122 @@ const store = new Store<StoreSchema>({
     pinnedFiles: {},
     windowBounds: { width: 1000, height: 700 },
     showHiddenFiles: false,
-    folderSort: {}
+    folderSort: {},
+    migratedToManifest: false,
+    pinnedDirectories: []
   }
 })
+
+const MANIFEST_FILENAME = '.altfinder.json'
+
+// Read manifest from a directory
+async function readManifest(dirPath: string): Promise<AltFinderManifest | null> {
+  const manifestPath = path.join(dirPath, MANIFEST_FILENAME)
+  try {
+    const content = await fs.readFile(manifestPath, 'utf-8')
+    return JSON.parse(content) as AltFinderManifest
+  } catch {
+    return null
+  }
+}
+
+// Write manifest to a directory
+async function writeManifest(dirPath: string, manifest: AltFinderManifest): Promise<boolean> {
+  const manifestPath = path.join(dirPath, MANIFEST_FILENAME)
+  try {
+    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8')
+    return true
+  } catch (error) {
+    console.error(`Failed to write manifest to ${dirPath}:`, error)
+    return false
+  }
+}
+
+// Get pinned file paths for a directory (reads from manifest)
+async function getPinnedFiles(dirPath: string): Promise<string[]> {
+  const manifest = await readManifest(dirPath)
+  if (!manifest || !manifest.pinned) return []
+  // Convert filenames to full paths
+  return manifest.pinned.map(name => path.join(dirPath, name))
+}
+
+// Set pinned files for a directory (writes to manifest)
+async function setPinnedFiles(dirPath: string, filePaths: string[]): Promise<boolean> {
+  // Convert full paths to just filenames
+  const filenames = filePaths.map(p => path.basename(p))
+  const manifest: AltFinderManifest = {
+    version: 1,
+    pinned: filenames
+  }
+  const success = await writeManifest(dirPath, manifest)
+
+  // Update directory index
+  if (success) {
+    const dirs = store.get('pinnedDirectories')
+    if (filenames.length > 0) {
+      if (!dirs.includes(dirPath)) {
+        dirs.push(dirPath)
+        store.set('pinnedDirectories', dirs)
+      }
+    } else {
+      // Remove from index if no pins
+      store.set('pinnedDirectories', dirs.filter(d => d !== dirPath))
+    }
+  }
+
+  return success
+}
+
+// Migrate legacy pins from electron-store to manifest files
+async function migrateLegacyPins(): Promise<void> {
+  if (store.get('migratedToManifest')) return
+
+  const legacyPins = store.get('pinnedFiles')
+  const migratedDirs: string[] = []
+  let migrated = 0
+  let failed = 0
+
+  for (const [dirPath, filePaths] of Object.entries(legacyPins)) {
+    if (filePaths.length === 0) continue
+
+    // Check if directory still exists
+    if (!existsSync(dirPath)) continue
+
+    // Only migrate if no manifest exists yet (don't overwrite)
+    const existingManifest = await readManifest(dirPath)
+    if (existingManifest) {
+      // Still track existing manifests in index
+      migratedDirs.push(dirPath)
+      continue
+    }
+
+    // Write manifest directly (not via setPinnedFiles to avoid index updates during migration)
+    const filenames = filePaths.map((p: string) => path.basename(p))
+    const manifest: AltFinderManifest = { version: 1, pinned: filenames }
+    const success = await writeManifest(dirPath, manifest)
+
+    if (success) {
+      migrated++
+      migratedDirs.push(dirPath)
+      console.log(`Migrated pins for: ${dirPath}`)
+    } else {
+      failed++
+      console.error(`Failed to migrate pins for: ${dirPath}`)
+    }
+  }
+
+  // Update directory index with all migrated directories
+  if (migratedDirs.length > 0) {
+    const existingDirs = store.get('pinnedDirectories')
+    const allDirs = [...new Set([...existingDirs, ...migratedDirs])]
+    store.set('pinnedDirectories', allDirs)
+  }
+
+  if (migrated > 0 || failed === 0) {
+    store.set('migratedToManifest', true)
+    console.log(`Pin migration complete: ${migrated} directories migrated`)
+  }
+}
 
 let mainWindow: BrowserWindow | null = null
 let fileToOpen: string | null = null
@@ -448,7 +569,10 @@ function createMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Migrate legacy pins to manifest files
+  await migrateLegacyPins()
+
   createMenu()
   createWindow()
   setupFavoritesWatcher()
@@ -565,44 +689,47 @@ ipcMain.handle('fs:getFileInfo', async (_, filePath: string) => {
   }
 })
 
-// Pinned files
-ipcMain.handle('pins:get', (_, dirPath: string) => {
-  const pins = store.get('pinnedFiles')
-  return pins[dirPath] || []
+// Pinned files (manifest-based)
+ipcMain.handle('pins:get', async (_, dirPath: string) => {
+  return getPinnedFiles(dirPath)
 })
 
-ipcMain.handle('pins:set', (_, dirPath: string, pinnedPaths: string[]) => {
-  const pins = store.get('pinnedFiles')
-  pins[dirPath] = pinnedPaths
-  store.set('pinnedFiles', pins)
+ipcMain.handle('pins:set', async (_, dirPath: string, pinnedPaths: string[]) => {
+  return setPinnedFiles(dirPath, pinnedPaths)
 })
 
-ipcMain.handle('pins:add', (_, dirPath: string, filePath: string) => {
-  const pins = store.get('pinnedFiles')
-  if (!pins[dirPath]) pins[dirPath] = []
-  if (!pins[dirPath].includes(filePath)) {
-    pins[dirPath].push(filePath)
-    store.set('pinnedFiles', pins)
+ipcMain.handle('pins:add', async (_, dirPath: string, filePath: string) => {
+  const current = await getPinnedFiles(dirPath)
+  if (!current.includes(filePath)) {
+    current.push(filePath)
+    await setPinnedFiles(dirPath, current)
   }
-  return pins[dirPath]
+  return current
 })
 
-ipcMain.handle('pins:remove', (_, dirPath: string, filePath: string) => {
-  const pins = store.get('pinnedFiles')
-  if (pins[dirPath]) {
-    pins[dirPath] = pins[dirPath].filter((p: string) => p !== filePath)
-    store.set('pinnedFiles', pins)
-  }
-  return pins[dirPath] || []
+ipcMain.handle('pins:remove', async (_, dirPath: string, filePath: string) => {
+  const current = await getPinnedFiles(dirPath)
+  const updated = current.filter(p => p !== filePath)
+  await setPinnedFiles(dirPath, updated)
+  return updated
 })
 
-// Get all pinned files across all directories
+// Get all pinned files across all directories (reads from manifests)
 ipcMain.handle('pins:getAll', async () => {
-  const pins = store.get('pinnedFiles')
+  const pinnedDirs = store.get('pinnedDirectories')
   const allPinned: { file: FileInfo; sourceDir: string }[] = []
+  const validDirs: string[] = []
 
-  for (const [dirPath, filePaths] of Object.entries(pins)) {
-    for (const filePath of filePaths as string[]) {
+  for (const dirPath of pinnedDirs) {
+    // Check if directory still exists
+    if (!existsSync(dirPath)) continue
+
+    const pinnedFiles = await getPinnedFiles(dirPath)
+    if (pinnedFiles.length === 0) continue
+
+    validDirs.push(dirPath)
+
+    for (const filePath of pinnedFiles) {
       try {
         const stats = await fs.stat(filePath)
         const name = path.basename(filePath)
@@ -623,6 +750,11 @@ ipcMain.handle('pins:getAll', async () => {
         // File no longer exists, skip it
       }
     }
+  }
+
+  // Clean up index if directories were removed
+  if (validDirs.length !== pinnedDirs.length) {
+    store.set('pinnedDirectories', validDirs)
   }
 
   return allPinned
