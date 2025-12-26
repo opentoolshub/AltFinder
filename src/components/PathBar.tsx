@@ -50,20 +50,45 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
-  // Expand ~ to home directory and handle common shell patterns
+  // Expand ~ to home directory and resolve relative paths
   const expandPath = useCallback((inputPath: string): string => {
     let expanded = inputPath.trim()
 
     // Expand ~ at the start
     if (expanded === '~') {
       return homePath
-    }
-    if (expanded.startsWith('~/')) {
-      expanded = homePath + expanded.slice(1)
+    } else if (expanded.startsWith('~/')) {
+      expanded = homePath + expanded.substring(1)
     }
 
-    return expanded
-  }, [homePath])
+    // Handle absolute paths
+    if (expanded.startsWith('/')) {
+      return expanded
+    }
+
+    // Handle relative paths
+    const parts = path.split('/').filter(Boolean)
+    const inputParts = expanded.split('/').filter(Boolean)
+
+    if (expanded === '.' || expanded === './') return path
+
+    for (const part of inputParts) {
+      if (part === '.') continue
+      if (part === '..') {
+        parts.pop()
+      } else {
+        parts.push(part)
+      }
+    }
+
+    const resolved = '/' + parts.join('/')
+    // Preserve trailing slash for directories if user typed it
+    if (expanded.endsWith('/') && resolved !== '/') {
+      return resolved + '/'
+    }
+
+    return resolved
+  }, [homePath, path])
 
   // Get parent directory and partial name for autocomplete
   const getPathParts = useCallback((inputPath: string): { parentDir: string; partial: string } => {
@@ -180,11 +205,15 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Tab' && showSuggestions && suggestions.length > 0) {
-      e.preventDefault()
-      // Tab completes with the first/selected suggestion
-      const suggestion = selectedIndex >= 0 ? suggestions[selectedIndex] : suggestions[0]
-      applySuggestion(suggestion)
+    if (e.key === 'Tab') {
+      e.preventDefault() // Always prevent focus change
+      if (showSuggestions && suggestions.length > 0) {
+        // Cycle through suggestions
+        setSelectedIndex(prev => {
+          const next = prev + 1
+          return next >= suggestions.length ? 0 : next
+        })
+      }
     } else if (e.key === 'ArrowDown' && showSuggestions) {
       e.preventDefault()
       setSelectedIndex(prev => Math.min(prev + 1, suggestions.length - 1))
@@ -251,7 +280,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
               }, 150)
             }}
             className="w-full px-2 py-1 text-[13px] bg-white dark:bg-[#2a2a2a] text-neutral-900 dark:text-white border border-[#0A84FF] rounded-md focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/30"
-            placeholder="Enter path... (Tab to autocomplete)"
+            placeholder="Enter path... (Tab to cycle)"
           />
 
           {/* Autocomplete suggestions dropdown */}
@@ -287,7 +316,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
                 </button>
               ))}
               <div className="px-3 py-1 text-[11px] text-neutral-400 dark:text-neutral-500 border-t border-neutral-200/50 dark:border-white/10">
-                Tab to complete • ↑↓ to navigate • Enter to select
+                Tab to cycle • ↑↓ to navigate • Enter to select
               </div>
             </div>
           )}
