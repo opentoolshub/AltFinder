@@ -633,6 +633,7 @@ function App() {
         ) : (
           <PathBar
             path={currentPath}
+            homePath={homePath}
             onNavigate={navigateTo}
             onOpenInFinder={(p) => window.electron.showInFinder(p)}
             onOpenInTerminal={(p) => window.electron.openTerminal(p)}

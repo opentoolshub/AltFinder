@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 
 interface PathBarProps {
   path: string
+  homePath: string
   onNavigate: (path: string) => void
   onOpenInFinder?: (path: string) => void
   onOpenInTerminal?: (path: string) => void
@@ -33,11 +34,26 @@ const CopyIcon = () => (
   </svg>
 )
 
-export default function PathBar({ path, onNavigate, onOpenInFinder, onOpenInTerminal }: PathBarProps) {
+export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, onOpenInTerminal }: PathBarProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(path)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Expand ~ to home directory and handle common shell patterns
+  const expandPath = (inputPath: string): string => {
+    let expanded = inputPath.trim()
+
+    // Expand ~ at the start
+    if (expanded === '~') {
+      return homePath
+    }
+    if (expanded.startsWith('~/')) {
+      expanded = homePath + expanded.slice(1)
+    }
+
+    return expanded
+  }
 
   useEffect(() => {
     setEditValue(path)
@@ -68,9 +84,9 @@ export default function PathBar({ path, onNavigate, onOpenInFinder, onOpenInTerm
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      const trimmed = editValue.trim()
-      if (trimmed && trimmed !== path) {
-        onNavigate(trimmed)
+      const expanded = expandPath(editValue)
+      if (expanded && expanded !== path) {
+        onNavigate(expanded)
       }
       setIsEditing(false)
     } else if (e.key === 'Escape') {
@@ -90,9 +106,9 @@ export default function PathBar({ path, onNavigate, onOpenInFinder, onOpenInTerm
   }
 
   const commitEdit = () => {
-    const trimmed = editValue.trim()
-    if (trimmed && trimmed !== path) {
-      onNavigate(trimmed)
+    const expanded = expandPath(editValue)
+    if (expanded && expanded !== path) {
+      onNavigate(expanded)
     }
     setIsEditing(false)
   }
