@@ -50,6 +50,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
   const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
+  const suggestionButtonsRef = useRef<(HTMLButtonElement | null)[]>([])
   const ignoreBlurRef = useRef(false)
 
   // Expand ~ to home directory and resolve relative paths
@@ -140,8 +141,8 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
         return
       }
 
-      // Get directory contents
-      const files = await window.electron.readDirectoryFast(parentDir, true, 100)
+      // Get directory contents (increase limit for better autocomplete)
+      const files = await window.electron.readDirectoryFast(parentDir, true, 500)
 
       // Filter to matching items (prefer directories)
       const filtered = files.files
@@ -152,7 +153,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
           if (!a.isDirectory && b.isDirectory) return 1
           return a.name.localeCompare(b.name)
         })
-        .slice(0, 8)
+        .slice(0, 50) // Show up to 50 suggestions
         .map(f => ({
           name: f.name,
           path: f.path,
@@ -160,13 +161,25 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
         }))
 
       setSuggestions(filtered)
-      setShowSuggestions(filtered.length > 0)
+      // Only show if we have matches and we're not exactly matching the single result (unless it's a dir we want to traverse)
+      const exactMatch = filtered.length === 1 && filtered[0].name === partial
+      setShowSuggestions(filtered.length > 0 && !exactMatch)
       setSelectedIndex(-1)
     } catch {
       setSuggestions([])
       setShowSuggestions(false)
     }
   }, [getPathParts])
+
+  // Scroll selected suggestion into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && suggestionButtonsRef.current[selectedIndex]) {
+      suggestionButtonsRef.current[selectedIndex]?.scrollIntoView({
+        block: 'nearest',
+        behavior: 'smooth'
+      })
+    }
+  }, [selectedIndex])
 
   // Debounce suggestion fetching
   useEffect(() => {
@@ -316,9 +329,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
                 }
               }, 150)
             }}
-            className={`w-full px-2 py-1 text-[13px] bg-white dark:bg-[#2a2a2a] text-neutral-900 dark:text-white border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/30 ${
-              error ? 'border-red-500 focus:border-red-500' : 'border-[#0A84FF]'
-            }`}
+            className={`w-full px-2 py-1 text-[13px] bg-white dark:bg-[#2a2a2a] text-neutral-900 dark:text-white border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/30 ${error ? 'border-red-500 focus:border-red-500' : 'border-[#0A84FF]'}`}
             placeholder="Enter path... (Tab to cycle)"
           />
 
@@ -332,11 +343,12 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
           {showSuggestions && suggestions.length > 0 && !error && (
             <div
               ref={suggestionsRef}
-              className="absolute left-0 right-0 top-full mt-1 z-[100] bg-white/95 dark:bg-[#2a2a2a]/95 backdrop-blur-2xl rounded-lg shadow-2xl border border-neutral-200/50 dark:border-white/10 overflow-hidden"
+              className="absolute left-0 right-0 top-full mt-1 z-[100] max-h-60 overflow-y-auto bg-white/95 dark:bg-[#2a2a2a]/95 backdrop-blur-2xl rounded-lg shadow-2xl border border-neutral-200/50 dark:border-white/10"
             >
               {suggestions.map((suggestion, index) => (
                 <button
                   key={suggestion.path}
+                  ref={el => suggestionButtonsRef.current[index] = el}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => applySuggestion(suggestion)}
                   className={`w-full px-2 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors
@@ -356,11 +368,12 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
                   )}
                   <span className="truncate">{suggestion.name}</span>
                   {suggestion.isDirectory && (
-                    <span className="ml-auto text-[11px] opacity-50">/</span>
+                    <span className="ml-auto text-[11px] opacity-50">/
+                    </span>
                   )}
                 </button>
               ))}
-              <div className="px-2 py-1 text-[11px] text-neutral-400 dark:text-neutral-500 border-t border-neutral-200/50 dark:border-white/10">
+              <div className="px-2 py-1 text-[11px] text-neutral-400 dark:text-neutral-500 border-t border-neutral-200/50 dark:border-white/10 sticky bottom-0 bg-white dark:bg-[#2a2a2a] backdrop-blur-xl">
                 Tab to cycle • ↑↓ to navigate • Enter to select
               </div>
             </div>

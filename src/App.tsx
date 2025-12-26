@@ -79,6 +79,69 @@ function App() {
     setFavoritesLoading(false)
   }, [])
 
+  const navigateTo = useCallback((path: string, initial = false) => {
+    setIsAllPinnedView(false)
+    if (initial) {
+      setHistory([path])
+      setHistoryIndex(0)
+    } else {
+      const newHistory = history.slice(0, historyIndex + 1)
+      newHistory.push(path)
+      setHistory(newHistory)
+      setHistoryIndex(newHistory.length - 1)
+    }
+    setCurrentPath(path)
+    setSelectedFiles(new Set())
+    setSearchQuery('')
+    setRenaming(null)
+    setCreatingFolder(false)
+  }, [history, historyIndex])
+
+  const loadAllPinned = useCallback(async () => {
+    if (!window.electron) return
+    setLoading(true)
+    try {
+      const pinned = await window.electron.getAllPinnedFiles()
+      setAllPinnedFiles(pinned)
+    } catch (error) {
+      console.error('Failed to load all pinned files:', error)
+      setAllPinnedFiles([])
+    }
+    setLoading(false)
+  }, [])
+
+  const showAllPinned = useCallback(() => {
+    setIsAllPinnedView(true)
+    setSelectedFiles(new Set())
+    setSearchQuery('')
+    setRenaming(null)
+    setCreatingFolder(false)
+    loadAllPinned()
+  }, [loadAllPinned])
+
+  const goBack = useCallback(() => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1)
+      setCurrentPath(history[historyIndex - 1])
+      setSelectedFiles(new Set())
+    }
+  }, [history, historyIndex])
+
+  const goForward = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1)
+      setCurrentPath(history[historyIndex + 1])
+      setSelectedFiles(new Set())
+    }
+  }, [history, historyIndex])
+
+  const goUp = useCallback(() => {
+    const parent = currentPath.split('/').slice(0, -1).join('/') || '/'
+    if (parent !== currentPath) {
+      navigateTo(parent)
+    }
+  }, [currentPath, navigateTo])
+
   // Initialize
   useEffect(() => {
     const init = async () => {
@@ -106,81 +169,7 @@ function App() {
       }
     }
     init()
-  }, [])
-
-  // Listen for menu events
-  const currentPathRef = useRef(currentPath)
-  const historyRef = useRef(history)
-  const historyIndexRef = useRef(historyIndex)
-
-  useEffect(() => {
-    currentPathRef.current = currentPath
-    historyRef.current = history
-    historyIndexRef.current = historyIndex
-  }, [currentPath, history, historyIndex])
-
-  useEffect(() => {
-    if (!window.electron) return
-
-    const unsubBack = window.electron.onNavBack(() => {
-      const idx = historyIndexRef.current
-      if (idx > 0) {
-        const prevPath = historyRef.current[idx - 1]
-        setHistoryIndex(idx - 1)
-        setCurrentPath(prevPath)
-        setSelectedFiles(new Set())
-      }
-    })
-
-    const unsubForward = window.electron.onNavForward(() => {
-      const idx = historyIndexRef.current
-      const hist = historyRef.current
-      if (idx < hist.length - 1) {
-        const nextPath = hist[idx + 1]
-        setHistoryIndex(idx + 1)
-        setCurrentPath(nextPath)
-        setSelectedFiles(new Set())
-      }
-    })
-
-    const unsubUp = window.electron.onNavUp(() => {
-      const path = currentPathRef.current
-      const parent = path.split('/').slice(0, -1).join('/') || '/'
-      if (parent !== path) {
-        navigateTo(parent)
-      }
-    })
-
-    const unsubGoto = window.electron.onNavGoto((path) => navigateTo(path))
-    const unsubNewFolder = window.electron.onNewFolder(() => setCreatingFolder(true))
-    const unsubHidden = window.electron.onShowHiddenFilesChange((value) => {
-      setShowHiddenFiles(value)
-    })
-
-    return () => {
-      unsubBack()
-      unsubForward()
-      unsubUp()
-      unsubGoto()
-      unsubNewFolder()
-      unsubHidden()
-    }
-  }, [navigateTo]) // navigateTo is stable (useCallback)
-
-  // Listen for favorites changes (file watch + window focus)
-  useEffect(() => {
-    if (!window.electron) return
-
-    const unsubFavorites = window.electron.onFavoritesChanged(async () => {
-      console.log('Reloading Finder favorites...')
-      const favorites = await window.electron.getFinderFavorites()
-      setFinderFavorites(favorites)
-    })
-
-    return () => {
-      unsubFavorites()
-    }
-  }, [])
+  }, [loadFavorites, navigateTo])
 
   // Load directory when path or showHiddenFiles changes
   useEffect(() => {
@@ -192,12 +181,12 @@ function App() {
       // Load immediately
       loadDirectory(currentPath)
     }
-  }, [currentPath, showHiddenFiles])
+  }, [currentPath, showHiddenFiles, loadDirectory])
 
   const [loadingMore, setLoadingMore] = useState(false)
   const [totalItems, setTotalItems] = useState(0)
 
-  const loadDirectory = async (dirPath: string) => {
+  const loadDirectory = useCallback(async (dirPath: string) => {
     if (!window.electron) return
 
     // Increment load ID to cancel any in-progress loads
@@ -315,70 +304,64 @@ function App() {
         setLoading(false)
       }
     }
-  }
+  }, [showHiddenFiles])
 
-  const navigateTo = useCallback((path: string, initial = false) => {
-    setIsAllPinnedView(false)
-    if (initial) {
-      setHistory([path])
-      setHistoryIndex(0)
-    } else {
-      const newHistory = history.slice(0, historyIndex + 1)
-      newHistory.push(path)
-      setHistory(newHistory)
-      setHistoryIndex(newHistory.length - 1)
-    }
-    setCurrentPath(path)
-    setSelectedFiles(new Set())
-    setSearchQuery('')
-    setRenaming(null)
-    setCreatingFolder(false)
-  }, [history, historyIndex])
+  // Listen for menu events
+  const currentPathRef = useRef(currentPath)
+  const historyRef = useRef(history)
+  const historyIndexRef = useRef(historyIndex)
 
-  const loadAllPinned = useCallback(async () => {
+  useEffect(() => {
+    currentPathRef.current = currentPath
+    historyRef.current = history
+    historyIndexRef.current = historyIndex
+  }, [currentPath, history, historyIndex])
+
+  useEffect(() => {
     if (!window.electron) return
-    setLoading(true)
-    try {
-      const pinned = await window.electron.getAllPinnedFiles()
-      setAllPinnedFiles(pinned)
-    } catch (error) {
-      console.error('Failed to load all pinned files:', error)
-      setAllPinnedFiles([])
+
+    const unsubBack = window.electron.onNavBack(() => {
+      goBack()
+    })
+
+    const unsubForward = window.electron.onNavForward(() => {
+      goForward()
+    })
+
+    const unsubUp = window.electron.onNavUp(() => {
+      goUp()
+    })
+
+    const unsubGoto = window.electron.onNavGoto((path) => navigateTo(path))
+    const unsubNewFolder = window.electron.onNewFolder(() => setCreatingFolder(true))
+    const unsubHidden = window.electron.onShowHiddenFilesChange((value) => {
+      setShowHiddenFiles(value)
+    })
+
+    return () => {
+      unsubBack()
+      unsubForward()
+      unsubUp()
+      unsubGoto()
+      unsubNewFolder()
+      unsubHidden()
     }
-    setLoading(false)
+  }, [goBack, goForward, goUp, navigateTo])
+
+  // Listen for favorites changes (file watch + window focus)
+  useEffect(() => {
+    if (!window.electron) return
+
+    const unsubFavorites = window.electron.onFavoritesChanged(async () => {
+      console.log('Reloading Finder favorites...')
+      const favorites = await window.electron.getFinderFavorites()
+      setFinderFavorites(favorites)
+    })
+
+    return () => {
+      unsubFavorites()
+    }
   }, [])
-
-  const showAllPinned = useCallback(() => {
-    setIsAllPinnedView(true)
-    setSelectedFiles(new Set())
-    setSearchQuery('')
-    setRenaming(null)
-    setCreatingFolder(false)
-    loadAllPinned()
-  }, [loadAllPinned])
-
-  const goBack = useCallback(() => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1)
-      setCurrentPath(history[historyIndex - 1])
-      setSelectedFiles(new Set())
-    }
-  }, [history, historyIndex])
-
-  const goForward = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1)
-      setCurrentPath(history[historyIndex + 1])
-      setSelectedFiles(new Set())
-    }
-  }, [history, historyIndex])
-
-  const goUp = useCallback(() => {
-    const parent = currentPath.split('/').slice(0, -1).join('/') || '/'
-    if (parent !== currentPath) {
-      navigateTo(parent)
-    }
-  }, [currentPath, navigateTo])
 
   const handleFileOpen = async (file: FileInfo) => {
     if (file.isDirectory) {
@@ -413,19 +396,19 @@ function App() {
     })
   }
 
-  const handleCopy = () => {
+  const handleCopy = useCallback(() => {
     if (selectedFiles.size > 0) {
       setClipboard({ files: Array.from(selectedFiles), operation: 'copy' })
     }
-  }
+  }, [selectedFiles])
 
-  const handleCut = () => {
+  const handleCut = useCallback(() => {
     if (selectedFiles.size > 0) {
       setClipboard({ files: Array.from(selectedFiles), operation: 'cut' })
     }
-  }
+  }, [selectedFiles])
 
-  const handlePaste = async () => {
+  const handlePaste = useCallback(async () => {
     if (clipboard.files.length > 0 && clipboard.operation) {
       try {
         if (clipboard.operation === 'copy') {
@@ -439,9 +422,9 @@ function App() {
         console.error('Paste failed:', error)
       }
     }
-  }
+  }, [clipboard, currentPath, loadDirectory])
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (selectedFiles.size > 0) {
       try {
         for (const filePath of selectedFiles) {
@@ -453,7 +436,7 @@ function App() {
         console.error('Delete failed:', error)
       }
     }
-  }
+  }, [selectedFiles, currentPath, loadDirectory])
 
   const handleRename = async (oldPath: string, newName: string) => {
     try {
@@ -492,9 +475,9 @@ function App() {
     setContextMenu({ x: e.clientX, y: e.clientY, file })
   }
 
-  const closeContextMenu = () => {
+  const closeContextMenu = useCallback(() => {
     setContextMenu(null)
-  }
+  }, [])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -533,7 +516,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedFiles, clipboard, pinnedFiles, files, renaming])
+  }, [selectedFiles, clipboard, pinnedFiles, files, renaming, handleCopy, handleCut, handlePaste, handleDelete, closeContextMenu])
 
   // Filter and sort files
   const filteredFiles = files.filter(f => {
@@ -796,6 +779,13 @@ function App() {
             handleDelete()
             closeContextMenu()
           }}
+          onOpenTerminal={() => {
+            const path = contextMenu.file && contextMenu.file.isDirectory 
+              ? contextMenu.file.path 
+              : currentPath
+            window.electron.openTerminal(path)
+            closeContextMenu()
+          }}
           onRename={() => {
             if (contextMenu.file) {
               setRenaming(contextMenu.file.path)
@@ -826,13 +816,6 @@ function App() {
           onCopyPath={() => {
             const path = contextMenu.file ? contextMenu.file.path : currentPath
             window.electron.writeTextToClipboard(path)
-            closeContextMenu()
-          }}
-          onOpenTerminal={() => {
-            const path = contextMenu.file && contextMenu.file.isDirectory 
-              ? contextMenu.file.path 
-              : currentPath
-            window.electron.openTerminal(path)
             closeContextMenu()
           }}
         />
