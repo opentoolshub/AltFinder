@@ -290,7 +290,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
 
   if (isEditing) {
     return (
-      <div className="relative flex items-center gap-2 px-4 py-2 bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-xl border-b border-neutral-200/60 dark:border-white/5">
+      <div className="relative z-20 flex items-center gap-2 px-4 py-2 bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-xl border-b border-neutral-200/60 dark:border-white/5">
         <div className="flex-1 relative">
           <input
             ref={inputRef}
@@ -333,7 +333,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
                   key={suggestion.path}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => applySuggestion(suggestion)}
-                  className={`w-full px-3 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors
+                  className={`w-full px-2 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors
                     ${index === selectedIndex
                       ? 'bg-[#0A84FF] text-white'
                       : 'text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/10'
@@ -354,7 +354,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
                   )}
                 </button>
               ))}
-              <div className="px-3 py-1 text-[11px] text-neutral-400 dark:text-neutral-500 border-t border-neutral-200/50 dark:border-white/10">
+              <div className="px-2 py-1 text-[11px] text-neutral-400 dark:text-neutral-500 border-t border-neutral-200/50 dark:border-white/10">
                 Tab to cycle • ↑↓ to navigate • Enter to select
               </div>
             </div>
