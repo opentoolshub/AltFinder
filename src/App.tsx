@@ -171,18 +171,6 @@ function App() {
     init()
   }, [loadFavorites, navigateTo])
 
-  // Load directory when path or showHiddenFiles changes
-  useEffect(() => {
-    if (currentPath) {
-      // Increment load ID immediately to cancel any in-flight loads
-      loadIdRef.current++
-      // Show loading spinner for feedback
-      setLoading(true)
-      // Load immediately
-      loadDirectory(currentPath)
-    }
-  }, [currentPath, showHiddenFiles, loadDirectory])
-
   const [loadingMore, setLoadingMore] = useState(false)
   const [totalItems, setTotalItems] = useState(0)
 
@@ -305,6 +293,18 @@ function App() {
       }
     }
   }, [showHiddenFiles])
+
+  // Load directory when path or showHiddenFiles changes
+  useEffect(() => {
+    if (currentPath) {
+      // Increment load ID immediately to cancel any in-flight loads
+      loadIdRef.current++
+      // Show loading spinner for feedback
+      setLoading(true)
+      // Load immediately
+      loadDirectory(currentPath)
+    }
+  }, [currentPath, showHiddenFiles, loadDirectory])
 
   // Listen for menu events
   const currentPathRef = useRef(currentPath)

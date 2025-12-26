@@ -348,7 +348,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
               {suggestions.map((suggestion, index) => (
                 <button
                   key={suggestion.path}
-                  ref={el => suggestionButtonsRef.current[index] = el}
+                  ref={el => { suggestionButtonsRef.current[index] = el }}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => applySuggestion(suggestion)}
                   className={`w-full px-2 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors
