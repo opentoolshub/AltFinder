@@ -50,6 +50,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
   const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
+  const ignoreBlurRef = useRef(false)
 
   // Expand ~ to home directory and resolve relative paths
   const expandPath = useCallback((inputPath: string): string => {
@@ -183,9 +184,12 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
   }, [path])
 
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
+    if (isEditing) {
+      ignoreBlurRef.current = false
+      if (inputRef.current) {
+        inputRef.current.focus()
+        inputRef.current.select()
+      }
     }
   }, [isEditing])
 
@@ -237,6 +241,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
       } else {
         const expanded = expandPath(editValue)
         if (expanded && expanded !== path) {
+          ignoreBlurRef.current = true
           onNavigate(expanded)
         }
         setIsEditing(false)
@@ -302,6 +307,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
             }}
             onKeyDown={handleKeyDown}
             onBlur={() => {
+              if (ignoreBlurRef.current) return
               // Delay to allow clicking suggestions
               setTimeout(() => {
                 if (!suggestionsRef.current?.contains(document.activeElement)) {
