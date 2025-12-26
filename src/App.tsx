@@ -109,12 +109,48 @@ function App() {
   }, [])
 
   // Listen for menu events
+  const currentPathRef = useRef(currentPath)
+  const historyRef = useRef(history)
+  const historyIndexRef = useRef(historyIndex)
+
+  useEffect(() => {
+    currentPathRef.current = currentPath
+    historyRef.current = history
+    historyIndexRef.current = historyIndex
+  }, [currentPath, history, historyIndex])
+
   useEffect(() => {
     if (!window.electron) return
 
-    const unsubBack = window.electron.onNavBack(() => goBack())
-    const unsubForward = window.electron.onNavForward(() => goForward())
-    const unsubUp = window.electron.onNavUp(() => goUp())
+    const unsubBack = window.electron.onNavBack(() => {
+      const idx = historyIndexRef.current
+      if (idx > 0) {
+        const prevPath = historyRef.current[idx - 1]
+        setHistoryIndex(idx - 1)
+        setCurrentPath(prevPath)
+        setSelectedFiles(new Set())
+      }
+    })
+
+    const unsubForward = window.electron.onNavForward(() => {
+      const idx = historyIndexRef.current
+      const hist = historyRef.current
+      if (idx < hist.length - 1) {
+        const nextPath = hist[idx + 1]
+        setHistoryIndex(idx + 1)
+        setCurrentPath(nextPath)
+        setSelectedFiles(new Set())
+      }
+    })
+
+    const unsubUp = window.electron.onNavUp(() => {
+      const path = currentPathRef.current
+      const parent = path.split('/').slice(0, -1).join('/') || '/'
+      if (parent !== path) {
+        navigateTo(parent)
+      }
+    })
+
     const unsubGoto = window.electron.onNavGoto((path) => navigateTo(path))
     const unsubNewFolder = window.electron.onNewFolder(() => setCreatingFolder(true))
     const unsubHidden = window.electron.onShowHiddenFilesChange((value) => {
@@ -129,7 +165,7 @@ function App() {
       unsubNewFolder()
       unsubHidden()
     }
-  }, [history, historyIndex, currentPath])
+  }, [navigateTo]) // navigateTo is stable (useCallback)
 
   // Listen for favorites changes (file watch + window focus)
   useEffect(() => {
