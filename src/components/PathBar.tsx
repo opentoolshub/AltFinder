@@ -43,6 +43,7 @@ const CopyIcon = () => (
 export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, onOpenInTerminal }: PathBarProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(path)
+  const [error, setError] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [selectedIndex, setSelectedIndex] = useState(-1)
@@ -53,6 +54,15 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
   // Expand ~ to home directory and resolve relative paths
   const expandPath = useCallback((inputPath: string): string => {
     let expanded = inputPath.trim()
+
+    // Handle quotes (both single and double)
+    if ((expanded.startsWith('"') && expanded.endsWith('"')) || 
+        (expanded.startsWith("'") && expanded.endsWith("'"))) {
+      expanded = expanded.slice(1, -1)
+    }
+
+    // Handle escaped spaces (e.g. "My\ Folder" -> "My Folder")
+    expanded = expanded.replace(/\\ /g, ' ')
 
     // Expand ~ at the start
     if (expanded === '~') {
@@ -252,12 +262,30 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
     setContextMenu({ x: e.clientX, y: e.clientY, path: segmentPath })
   }
 
-  const commitEdit = () => {
+  const commitEdit = async () => {
     const expanded = expandPath(editValue)
-    if (expanded && expanded !== path) {
-      onNavigate(expanded)
+    if (!expanded) return
+
+    if (expanded === path) {
+      setIsEditing(false)
+      setShowSuggestions(false)
+      setError(null)
+      return
     }
-    setIsEditing(false)
+
+    try {
+      const exists = await window.electron.exists(expanded)
+      if (exists) {
+        onNavigate(expanded)
+        setIsEditing(false)
+        setShowSuggestions(false)
+        setError(null)
+      } else {
+        setError("Folder doesn't exist")
+      }
+    } catch {
+      setError("Error checking path")
+    }
   }
 
   if (isEditing) {
@@ -268,7 +296,10 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
             ref={inputRef}
             type="text"
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(e) => {
+              setEditValue(e.target.value)
+              setError(null)
+            }}
             onKeyDown={handleKeyDown}
             onBlur={() => {
               // Delay to allow clicking suggestions
@@ -279,15 +310,23 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
                 }
               }, 150)
             }}
-            className="w-full px-2 py-1 text-[13px] bg-white dark:bg-[#2a2a2a] text-neutral-900 dark:text-white border border-[#0A84FF] rounded-md focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/30"
+            className={`w-full px-2 py-1 text-[13px] bg-white dark:bg-[#2a2a2a] text-neutral-900 dark:text-white border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0A84FF]/30 ${
+              error ? 'border-red-500 focus:border-red-500' : 'border-[#0A84FF]'
+            }`}
             placeholder="Enter path... (Tab to cycle)"
           />
 
+          {error && (
+            <div className="absolute top-full left-0 mt-1 text-[11px] text-red-500 font-medium z-[101]">
+              {error}
+            </div>
+          )}
+
           {/* Autocomplete suggestions dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && suggestions.length > 0 && !error && (
             <div
               ref={suggestionsRef}
-              className="absolute left-0 right-0 top-full mt-1 z-50 bg-white/95 dark:bg-[#2a2a2a]/95 backdrop-blur-2xl rounded-lg shadow-2xl border border-neutral-200/50 dark:border-white/10 overflow-hidden"
+              className="absolute left-0 right-0 top-full mt-1 z-[100] bg-white/95 dark:bg-[#2a2a2a]/95 backdrop-blur-2xl rounded-lg shadow-2xl border border-neutral-200/50 dark:border-white/10 overflow-hidden"
             >
               {suggestions.map((suggestion, index) => (
                 <button
@@ -334,6 +373,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
             setEditValue(path)
             setIsEditing(false)
             setShowSuggestions(false)
+            setError(null)
           }}
           className="px-3 py-1 text-[12px] font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
         >
