@@ -2,7 +2,7 @@
 id: AF-1
 title: Multi-window support
 type: feature
-status: in_progress
+status: done
 priority: 2
 created: 2025-12-26T00:00:00Z
 ---
