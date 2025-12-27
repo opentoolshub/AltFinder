@@ -1069,7 +1069,7 @@ ipcMain.handle('settings:setSortOrder', (_, dirPath: string, config: { field: st
 
 // Finder favorites - async and cached
 let cachedFinderFavorites: { name: string; path: string }[] | null = null
-let finderFavoritesLoading = false
+let finderFavoritesPromise: Promise<{ name: string; path: string }[]> | null = null
 
 async function getFinderFavorites(): Promise<{ name: string; path: string }[]> {
   // Return cache if available
@@ -1077,13 +1077,19 @@ async function getFinderFavorites(): Promise<{ name: string; path: string }[]> {
     return cachedFinderFavorites
   }
 
-  // Prevent multiple simultaneous loads
-  if (finderFavoritesLoading) {
-    return []
+  // If already loading, wait for that load to complete
+  if (finderFavoritesPromise !== null) {
+    return finderFavoritesPromise
   }
 
-  finderFavoritesLoading = true
+  // Start loading
+  finderFavoritesPromise = loadFinderFavorites()
+  const result = await finderFavoritesPromise
+  finderFavoritesPromise = null
+  return result
+}
 
+async function loadFinderFavorites(): Promise<{ name: string; path: string }[]> {
   try {
     // In packaged app, scripts are unpacked outside the asar
     let scriptPath = path.join(__dirname, '../scripts/read-finder-favorites.swift')
@@ -1091,8 +1097,7 @@ async function getFinderFavorites(): Promise<{ name: string; path: string }[]> {
       scriptPath = scriptPath.replace('app.asar', 'app.asar.unpacked')
     }
     if (!existsSync(scriptPath)) {
-      finderFavoritesLoading = false
-      return []
+      return getDefaultFavorites()
     }
 
     const { stdout } = await execAsync(`swift "${scriptPath}"`, { timeout: 10000 })
@@ -1101,25 +1106,27 @@ async function getFinderFavorites(): Promise<{ name: string; path: string }[]> {
     cachedFinderFavorites = favorites.filter((f: { name: string; path: string }) =>
       f.name && f.path && !f.path.includes('.cannedSearch')
     )
-    finderFavoritesLoading = false
     return cachedFinderFavorites
   } catch (error) {
     console.error('Failed to read Finder favorites:', error)
-    finderFavoritesLoading = false
-    // Return default favorites as fallback
-    const home = homedir()
-    return [
-      { name: 'Desktop', path: path.join(home, 'Desktop') },
-      { name: 'Documents', path: path.join(home, 'Documents') },
-      { name: 'Downloads', path: path.join(home, 'Downloads') },
-      { name: 'Applications', path: '/Applications' },
-    ]
+    return getDefaultFavorites()
   }
+}
+
+function getDefaultFavorites(): { name: string; path: string }[] {
+  const home = homedir()
+  return [
+    { name: 'Desktop', path: path.join(home, 'Desktop') },
+    { name: 'Documents', path: path.join(home, 'Documents') },
+    { name: 'Downloads', path: path.join(home, 'Downloads') },
+    { name: 'Applications', path: '/Applications' },
+  ]
 }
 
 // Invalidate cache when favorites file changes
 function invalidateFinderFavoritesCache() {
   cachedFinderFavorites = null
+  finderFavoritesPromise = null
 }
 
 ipcMain.handle('fs:getFinderFavorites', async () => {
