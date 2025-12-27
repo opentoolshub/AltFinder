@@ -6,6 +6,7 @@ interface PathBarProps {
   onNavigate: (path: string) => void
   onOpenInFinder?: (path: string) => void
   onOpenInTerminal?: (path: string) => void
+  showHiddenFiles: boolean
 }
 
 interface Suggestion {
@@ -40,7 +41,7 @@ const CopyIcon = () => (
   </svg>
 )
 
-export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, onOpenInTerminal }: PathBarProps) {
+export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, onOpenInTerminal, showHiddenFiles }: PathBarProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(path)
   const [error, setError] = useState<string | null>(null)
@@ -142,7 +143,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
       }
 
       // Get directory contents (increase limit for better autocomplete)
-      const files = await window.electron.readDirectoryFast(parentDir, true, 500)
+      const files = await window.electron.readDirectoryFast(parentDir, showHiddenFiles, 500)
 
       // Filter to matching items (prefer directories)
       const filtered = files.files
@@ -169,7 +170,7 @@ export default function PathBar({ path, homePath, onNavigate, onOpenInFinder, on
       setSuggestions([])
       setShowSuggestions(false)
     }
-  }, [getPathParts])
+  }, [getPathParts, showHiddenFiles])
 
   // Scroll selected suggestion into view
   useEffect(() => {

@@ -656,6 +656,7 @@ function App() {
             onNavigate={navigateTo}
             onOpenInFinder={(p) => window.electron.showInFinder(p)}
             onOpenInTerminal={(p) => window.electron.openTerminal(p)}
+            showHiddenFiles={showHiddenFiles}
           />
         )}
 

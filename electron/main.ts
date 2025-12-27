@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Menu, nativeImage, clipboard } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, nativeImage, clipboard, dialog } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
 import { existsSync, statSync, watch } from 'fs'
@@ -447,6 +447,58 @@ function createWindow() {
   })
 }
 
+// Install shell command for CLI access
+async function installShellCommand(): Promise<void> {
+  const shellCommandPath = '/usr/local/bin/altfinder'
+  const appPath = app.isPackaged
+    ? path.join(path.dirname(app.getPath('exe')), '..', '..', '..')
+    : path.join(__dirname, '../dist/mac-arm64/AltFinder.app')
+
+  // Check if already installed
+  if (existsSync(shellCommandPath)) {
+    const result = await dialog.showMessageBox(mainWindow!, {
+      type: 'info',
+      title: 'Shell Command',
+      message: 'Shell command already installed',
+      detail: 'The "altfinder" command is already available in your terminal.\n\nUsage: altfinder /path/to/folder',
+      buttons: ['OK', 'Reinstall'],
+      defaultId: 0
+    })
+    if (result.response === 0) return
+  }
+
+  const script = `#!/bin/bash
+open -a "${appPath}" "$@"
+`
+
+  // Use osascript to run with admin privileges
+  const escapedScript = script.replace(/"/g, '\\"').replace(/\n/g, '\\n')
+  const command = `osascript -e 'do shell script "echo \\"${escapedScript}\\" > ${shellCommandPath} && chmod +x ${shellCommandPath}" with administrator privileges'`
+
+  try {
+    await execAsync(command)
+    await dialog.showMessageBox(mainWindow!, {
+      type: 'info',
+      title: 'Shell Command Installed',
+      message: 'Successfully installed "altfinder" command',
+      detail: 'You can now open folders from Terminal:\n\naltfinder .\naltfinder ~/Documents\naltfinder /any/path',
+      buttons: ['OK']
+    })
+  } catch (error) {
+    // User cancelled or error occurred
+    if ((error as Error).message?.includes('User canceled')) {
+      return
+    }
+    await dialog.showMessageBox(mainWindow!, {
+      type: 'error',
+      title: 'Installation Failed',
+      message: 'Failed to install shell command',
+      detail: (error as Error).message || 'Unknown error',
+      buttons: ['OK']
+    })
+  }
+}
+
 // Build application menu
 function createMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
@@ -454,6 +506,11 @@ function createMenu() {
       label: app.name,
       submenu: [
         { role: 'about' },
+        { type: 'separator' },
+        {
+          label: 'Install Shell Command...',
+          click: () => installShellCommand()
+        },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
