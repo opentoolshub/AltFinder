@@ -167,8 +167,13 @@ async function migrateLegacyPins(): Promise<void> {
   }
 }
 
-let mainWindow: BrowserWindow | null = null
+let mainWindow: BrowserWindow | null = null  // Track most recently focused window for menu actions
 let fileToOpen: string | null = process.env.ALTFINDER_PATH || null
+
+// Get the focused window or fall back to any window
+function getFocusedWindow(): BrowserWindow | null {
+  return BrowserWindow.getFocusedWindow() || mainWindow || BrowserWindow.getAllWindows()[0] || null
+}
 
 // Handle opening directory via "Open With" or command line on macOS
 app.on('open-file', (event, path) => {
@@ -374,7 +379,7 @@ async function readDirectoryWithMeta(dirPath: string, showHidden: boolean, limit
   return { files, total, hasMore }
 }
 
-function createWindow() {
+function createWindow(initialPath?: string): BrowserWindow {
   const bounds = store.get('windowBounds')
 
   // Create app icon
@@ -387,11 +392,15 @@ function createWindow() {
     }
   }
 
-  mainWindow = new BrowserWindow({
+  // Offset new windows slightly from existing ones
+  const existingWindows = BrowserWindow.getAllWindows()
+  const offset = existingWindows.length * 30
+
+  const newWindow = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
-    x: bounds.x,
-    y: bounds.y,
+    x: (bounds.x ?? 100) + offset,
+    y: (bounds.y ?? 100) + offset,
     minWidth: 600,
     minHeight: 400,
     title: 'AltFinder',
@@ -399,8 +408,8 @@ function createWindow() {
     trafficLightPosition: { x: 16, y: 16 },
     vibrancy: 'sidebar',
     icon: icon,
-    show: false, // Don't show until ready to prevent white flash
-    backgroundColor: '#00000000', // Transparent to let vibrancy show, or fallback color
+    show: false,
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -408,29 +417,33 @@ function createWindow() {
     }
   })
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show()
+  // Track as main window for menu actions
+  mainWindow = newWindow
+
+  newWindow.once('ready-to-show', () => {
+    newWindow.show()
   })
 
-  // Save window bounds on resize/move
-  mainWindow.on('resize', () => {
-    if (mainWindow) {
-      const [width, height] = mainWindow.getSize()
-      const [x, y] = mainWindow.getPosition()
-      store.set('windowBounds', { width, height, x, y })
-    }
+  // Update mainWindow reference when this window is focused
+  newWindow.on('focus', () => {
+    mainWindow = newWindow
   })
 
-  mainWindow.on('move', () => {
-    if (mainWindow) {
-      const [width, height] = mainWindow.getSize()
-      const [x, y] = mainWindow.getPosition()
-      store.set('windowBounds', { width, height, x, y })
-    }
+  // Save window bounds on resize/move (only from this window)
+  newWindow.on('resize', () => {
+    const [width, height] = newWindow.getSize()
+    const [x, y] = newWindow.getPosition()
+    store.set('windowBounds', { width, height, x, y })
+  })
+
+  newWindow.on('move', () => {
+    const [width, height] = newWindow.getSize()
+    const [x, y] = newWindow.getPosition()
+    store.set('windowBounds', { width, height, x, y })
   })
 
   // Log renderer console to terminal
-  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+  newWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
     const levels = ['DEBUG', 'INFO', 'WARN', 'ERROR']
     const levelName = levels[level] || 'LOG'
     const source = sourceId ? sourceId.split('/').pop() : 'unknown'
@@ -438,19 +451,22 @@ function createWindow() {
   })
 
   if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-    mainWindow.webContents.openDevTools()
+    newWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+    newWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    newWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
-  // Handle pending file to open
-  mainWindow.webContents.on('did-finish-load', () => {
-    if (fileToOpen) {
-      mainWindow?.webContents.send('nav:goto', fileToOpen)
-      fileToOpen = null
-    }
-  })
+  // Handle initial path (from file open or env var)
+  const pathToOpen = initialPath || fileToOpen
+  if (pathToOpen) {
+    newWindow.webContents.on('did-finish-load', () => {
+      newWindow.webContents.send('nav:goto', pathToOpen)
+    })
+    if (!initialPath) fileToOpen = null  // Clear global only if it was the source
+  }
+
+  return newWindow
 }
 
 // Install shell command for CLI access
@@ -531,9 +547,14 @@ function createMenu() {
       label: 'File',
       submenu: [
         {
+          label: 'New Window',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => createWindow()
+        },
+        {
           label: 'New Folder',
           accelerator: 'CmdOrCtrl+Shift+N',
-          click: () => mainWindow?.webContents.send('menu:newFolder')
+          click: () => getFocusedWindow()?.webContents.send('menu:newFolder')
         },
         { type: 'separator' },
         { role: 'close' }
@@ -562,7 +583,10 @@ function createMenu() {
           checked: store.get('showHiddenFiles'),
           click: (menuItem) => {
             store.set('showHiddenFiles', menuItem.checked)
-            mainWindow?.webContents.send('settings:showHiddenFiles', menuItem.checked)
+            // Send to all windows
+            BrowserWindow.getAllWindows().forEach(win => {
+              win.webContents.send('settings:showHiddenFiles', menuItem.checked)
+            })
           }
         },
         { type: 'separator' },
@@ -583,38 +607,38 @@ function createMenu() {
         {
           label: 'Back',
           accelerator: 'CmdOrCtrl+[',
-          click: () => mainWindow?.webContents.send('nav:back')
+          click: () => getFocusedWindow()?.webContents.send('nav:back')
         },
         {
           label: 'Forward',
           accelerator: 'CmdOrCtrl+]',
-          click: () => mainWindow?.webContents.send('nav:forward')
+          click: () => getFocusedWindow()?.webContents.send('nav:forward')
         },
         {
           label: 'Enclosing Folder',
           accelerator: 'CmdOrCtrl+Up',
-          click: () => mainWindow?.webContents.send('nav:up')
+          click: () => getFocusedWindow()?.webContents.send('nav:up')
         },
         { type: 'separator' },
         {
           label: 'Home',
           accelerator: 'CmdOrCtrl+Shift+H',
-          click: () => mainWindow?.webContents.send('nav:goto', app.getPath('home'))
+          click: () => getFocusedWindow()?.webContents.send('nav:goto', app.getPath('home'))
         },
         {
           label: 'Desktop',
           accelerator: 'CmdOrCtrl+Shift+D',
-          click: () => mainWindow?.webContents.send('nav:goto', app.getPath('desktop'))
+          click: () => getFocusedWindow()?.webContents.send('nav:goto', app.getPath('desktop'))
         },
         {
           label: 'Documents',
           accelerator: 'CmdOrCtrl+Shift+O',
-          click: () => mainWindow?.webContents.send('nav:goto', app.getPath('documents'))
+          click: () => getFocusedWindow()?.webContents.send('nav:goto', app.getPath('documents'))
         },
         {
           label: 'Downloads',
           accelerator: 'CmdOrCtrl+Option+L',
-          click: () => mainWindow?.webContents.send('nav:goto', app.getPath('downloads'))
+          click: () => getFocusedWindow()?.webContents.send('nav:goto', app.getPath('downloads'))
         }
       ]
     },
