@@ -36,13 +36,39 @@ interface StoreSchema {
   showHiddenFiles: boolean
   folderSort: Record<string, { field: string; direction: string }>
   migratedToManifest: boolean  // Track if we've migrated legacy pins
-  pinnedDirectories: string[]  // Index of directories that have manifests
+  pinnedDirectories: string[]  // Legacy: simple paths
+  pinnedDirectoriesV2: DirectoryIndexEntry[]  // V2: paths with bookmarks
 }
 
 // Manifest file structure for .altfinder.json
+interface PinnedItem {
+  name: string       // Filename
+  bookmark?: string  // Base64 bookmark data for tracking across renames
+}
+
 interface AltFinderManifest {
-  version: 1
-  pinned: string[]  // Array of filenames (not full paths, just names)
+  version: 1 | 2
+  pinned: string[] | PinnedItem[]  // v1: filenames, v2: objects with bookmarks
+}
+
+// Directory index entry with bookmark for tracking renames
+interface DirectoryIndexEntry {
+  path: string
+  bookmark: string  // Base64 bookmark data
+}
+
+// Bookmark operation results
+interface BookmarkResult {
+  path: string
+  bookmark: string | null
+  error: string | null
+}
+
+interface ResolveResult {
+  bookmark: string
+  path: string | null
+  stale: boolean
+  error: string | null
 }
 
 const store = new Store<StoreSchema>({
@@ -52,11 +78,70 @@ const store = new Store<StoreSchema>({
     showHiddenFiles: false,
     folderSort: {},
     migratedToManifest: false,
-    pinnedDirectories: []
+    pinnedDirectories: [],
+    pinnedDirectoriesV2: []
   }
 })
 
 const MANIFEST_FILENAME = '.altfinder.json'
+
+// Get path to bookmark utility script
+function getBookmarkScriptPath(): string {
+  let scriptPath = path.join(__dirname, '../scripts/bookmark-utils.swift')
+  if (app.isPackaged) {
+    scriptPath = scriptPath.replace('app.asar', 'app.asar.unpacked')
+  }
+  return scriptPath
+}
+
+// Create a bookmark for a file/folder path
+async function createBookmark(filePath: string): Promise<string | null> {
+  const scriptPath = getBookmarkScriptPath()
+  if (!existsSync(scriptPath)) return null
+
+  try {
+    const { stdout } = await execAsync(`swift "${scriptPath}" create "${filePath}"`, { timeout: 5000 })
+    const result: BookmarkResult = JSON.parse(stdout)
+    return result.bookmark
+  } catch (error) {
+    console.error('Failed to create bookmark:', error)
+    return null
+  }
+}
+
+// Resolve a bookmark to its current path (handles renames/moves)
+async function resolveBookmark(bookmark: string): Promise<{ path: string | null; stale: boolean }> {
+  const scriptPath = getBookmarkScriptPath()
+  if (!existsSync(scriptPath)) return { path: null, stale: false }
+
+  try {
+    const { stdout } = await execAsync(`swift "${scriptPath}" resolve "${bookmark}"`, { timeout: 5000 })
+    const result: ResolveResult = JSON.parse(stdout)
+    return { path: result.path, stale: result.stale }
+  } catch (error) {
+    console.error('Failed to resolve bookmark:', error)
+    return { path: null, stale: false }
+  }
+}
+
+// Batch create bookmarks for multiple paths
+async function createBookmarks(paths: string[]): Promise<Map<string, string>> {
+  const scriptPath = getBookmarkScriptPath()
+  const results = new Map<string, string>()
+  if (!existsSync(scriptPath) || paths.length === 0) return results
+
+  try {
+    const jsonArg = JSON.stringify(paths).replace(/"/g, '\\"')
+    const { stdout } = await execAsync(`swift "${scriptPath}" batch-create "${jsonArg}"`, { timeout: 10000 })
+    const batchResults: BookmarkResult[] = JSON.parse(stdout)
+    for (const r of batchResults) {
+      if (r.bookmark) results.set(r.path, r.bookmark)
+    }
+  } catch (error) {
+    console.error('Failed to batch create bookmarks:', error)
+  }
+  return results
+}
 
 // Read manifest from a directory
 async function readManifest(dirPath: string): Promise<AltFinderManifest | null> {
@@ -81,39 +166,99 @@ async function writeManifest(dirPath: string, manifest: AltFinderManifest): Prom
   }
 }
 
-// Get pinned file paths for a directory (reads from manifest)
+// Get pinned file paths for a directory (reads from manifest, resolves bookmarks)
 async function getPinnedFiles(dirPath: string): Promise<string[]> {
   const manifest = await readManifest(dirPath)
   if (!manifest || !manifest.pinned) return []
-  // Convert filenames to full paths
-  return manifest.pinned.map(name => path.join(dirPath, name))
-}
 
-// Set pinned files for a directory (writes to manifest)
-async function setPinnedFiles(dirPath: string, filePaths: string[]): Promise<boolean> {
-  // Convert full paths to just filenames
-  const filenames = filePaths.map(p => path.basename(p))
-  const manifest: AltFinderManifest = {
-    version: 1,
-    pinned: filenames
-  }
-  const success = await writeManifest(dirPath, manifest)
+  const results: string[] = []
 
-  // Update directory index
-  if (success) {
-    const dirs = store.get('pinnedDirectories')
-    if (filenames.length > 0) {
-      if (!dirs.includes(dirPath)) {
-        dirs.push(dirPath)
-        store.set('pinnedDirectories', dirs)
+  if (manifest.version === 2) {
+    // V2 format: objects with bookmarks
+    const items = manifest.pinned as PinnedItem[]
+    for (const item of items) {
+      const expectedPath = path.join(dirPath, item.name)
+
+      // First, check if file exists at expected path
+      if (existsSync(expectedPath)) {
+        results.push(expectedPath)
+      } else if (item.bookmark) {
+        // File might have been renamed - try resolving bookmark
+        const resolved = await resolveBookmark(item.bookmark)
+        if (resolved.path && existsSync(resolved.path)) {
+          results.push(resolved.path)
+        }
       }
-    } else {
-      // Remove from index if no pins
-      store.set('pinnedDirectories', dirs.filter(d => d !== dirPath))
+    }
+  } else {
+    // V1 format: simple filenames
+    const filenames = manifest.pinned as string[]
+    for (const name of filenames) {
+      const filePath = path.join(dirPath, name)
+      if (existsSync(filePath)) {
+        results.push(filePath)
+      }
     }
   }
 
+  return results
+}
+
+// Set pinned files for a directory (writes manifest with bookmarks)
+async function setPinnedFiles(dirPath: string, filePaths: string[]): Promise<boolean> {
+  // Create bookmarks for all files
+  const bookmarks = await createBookmarks(filePaths)
+
+  // Build v2 manifest with bookmarks
+  const pinnedItems: PinnedItem[] = filePaths.map(p => ({
+    name: path.basename(p),
+    bookmark: bookmarks.get(p)
+  }))
+
+  const manifest: AltFinderManifest = {
+    version: 2,
+    pinned: pinnedItems
+  }
+  const success = await writeManifest(dirPath, manifest)
+
+  // Update directory index with bookmark
+  if (success) {
+    await updateDirectoryIndex(dirPath, pinnedItems.length > 0)
+  }
+
   return success
+}
+
+// Update directory index with bookmark tracking
+async function updateDirectoryIndex(dirPath: string, hasContent: boolean): Promise<void> {
+  const indexV2 = store.get('pinnedDirectoriesV2') || []
+
+  if (hasContent) {
+    // Check if already in index
+    const existing = indexV2.find(e => e.path === dirPath)
+    if (!existing) {
+      // Add with bookmark
+      const bookmark = await createBookmark(dirPath)
+      if (bookmark) {
+        indexV2.push({ path: dirPath, bookmark })
+        store.set('pinnedDirectoriesV2', indexV2)
+      }
+    }
+  } else {
+    // Remove from index
+    store.set('pinnedDirectoriesV2', indexV2.filter(e => e.path !== dirPath))
+  }
+
+  // Also update legacy index for backwards compatibility
+  const dirs = store.get('pinnedDirectories')
+  if (hasContent) {
+    if (!dirs.includes(dirPath)) {
+      dirs.push(dirPath)
+      store.set('pinnedDirectories', dirs)
+    }
+  } else {
+    store.set('pinnedDirectories', dirs.filter(d => d !== dirPath))
+  }
 }
 
 // Migrate legacy pins from electron-store to manifest files
@@ -801,20 +946,35 @@ ipcMain.handle('pins:remove', async (_, dirPath: string, filePath: string) => {
   return updated
 })
 
-// Get all pinned files across all directories (reads from manifests)
+// Get all pinned files across all directories (reads from manifests, resolves bookmarks)
 ipcMain.handle('pins:getAll', async () => {
-  const pinnedDirs = store.get('pinnedDirectories')
-  const allPinned: { file: FileInfo; sourceDir: string }[] = []
-  const validDirs: string[] = []
+  const indexV2 = store.get('pinnedDirectoriesV2') || []
+  const legacyDirs = store.get('pinnedDirectories') || []
 
-  for (const dirPath of pinnedDirs) {
-    // Check if directory still exists
-    if (!existsSync(dirPath)) continue
+  const allPinned: { file: FileInfo; sourceDir: string }[] = []
+  const validIndexV2: DirectoryIndexEntry[] = []
+  const validLegacyDirs: string[] = []
+
+  // Process V2 index with bookmark resolution
+  for (const entry of indexV2) {
+    let dirPath = entry.path
+
+    // If directory doesn't exist at stored path, try resolving bookmark
+    if (!existsSync(dirPath)) {
+      const resolved = await resolveBookmark(entry.bookmark)
+      if (resolved.path && existsSync(resolved.path)) {
+        dirPath = resolved.path
+        // Update the entry with new path
+        entry.path = dirPath
+      } else {
+        continue // Directory no longer accessible
+      }
+    }
 
     const pinnedFiles = await getPinnedFiles(dirPath)
     if (pinnedFiles.length === 0) continue
 
-    validDirs.push(dirPath)
+    validIndexV2.push(entry)
 
     for (const filePath of pinnedFiles) {
       try {
@@ -839,9 +999,52 @@ ipcMain.handle('pins:getAll', async () => {
     }
   }
 
-  // Clean up index if directories were removed
-  if (validDirs.length !== pinnedDirs.length) {
-    store.set('pinnedDirectories', validDirs)
+  // Also check legacy directories not yet in V2 index
+  const v2Paths = new Set(indexV2.map(e => e.path))
+  for (const dirPath of legacyDirs) {
+    if (v2Paths.has(dirPath)) continue // Already processed
+    if (!existsSync(dirPath)) continue
+
+    const pinnedFiles = await getPinnedFiles(dirPath)
+    if (pinnedFiles.length === 0) continue
+
+    validLegacyDirs.push(dirPath)
+
+    // Migrate to V2 index
+    const bookmark = await createBookmark(dirPath)
+    if (bookmark) {
+      validIndexV2.push({ path: dirPath, bookmark })
+    }
+
+    for (const filePath of pinnedFiles) {
+      try {
+        const stats = await fs.stat(filePath)
+        const name = path.basename(filePath)
+        allPinned.push({
+          file: {
+            name,
+            path: filePath,
+            isDirectory: stats.isDirectory(),
+            size: stats.size,
+            modifiedTime: stats.mtimeMs,
+            createdTime: stats.birthtimeMs,
+            kind: getFileKind(name, stats.isDirectory()),
+            extension: path.extname(name).toLowerCase()
+          },
+          sourceDir: dirPath
+        })
+      } catch {
+        // File no longer exists, skip it
+      }
+    }
+  }
+
+  // Update indices
+  if (validIndexV2.length !== indexV2.length || validLegacyDirs.length > 0) {
+    store.set('pinnedDirectoriesV2', validIndexV2)
+  }
+  if (validLegacyDirs.length !== legacyDirs.length) {
+    store.set('pinnedDirectories', [...new Set([...validLegacyDirs, ...validIndexV2.map(e => e.path)])])
   }
 
   return allPinned

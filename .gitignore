@@ -14,6 +14,12 @@ dist-ssr
 release
 *.local
 
+# Beads local files
+.beads/.local_version
+.beads/metadata.json
+.beads/beads.db
+daemon.lock
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
