@@ -2,7 +2,7 @@
 id: AF-4
 title: Shell command ignores path argument
 type: bug
-status: open
+status: done
 priority: 1
 created: 2025-12-27T00:00:00Z
 ---
