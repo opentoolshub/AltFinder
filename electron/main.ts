@@ -168,7 +168,7 @@ async function migrateLegacyPins(): Promise<void> {
 }
 
 let mainWindow: BrowserWindow | null = null
-let fileToOpen: string | null = null
+let fileToOpen: string | null = process.env.ALTFINDER_PATH || null
 
 // Handle opening directory via "Open With" or command line on macOS
 app.on('open-file', (event, path) => {
@@ -399,11 +399,17 @@ function createWindow() {
     trafficLightPosition: { x: 16, y: 16 },
     vibrancy: 'sidebar',
     icon: icon,
+    show: false, // Don't show until ready to prevent white flash
+    backgroundColor: '#00000000', // Transparent to let vibrancy show, or fallback color
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
+  })
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show()
   })
 
   // Save window bounds on resize/move

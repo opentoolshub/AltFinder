@@ -140,7 +140,12 @@ export default function FileList({
 
   const gridClass = "grid min-w-[600px] grid-cols-[minmax(280px,1fr)_140px_80px_110px] gap-x-4 px-4 items-center"
 
-  if (loading) {
+  // Only show full loading screen if we have no content to show (stale-while-revalidate)
+  const hasContent = isAllPinnedView 
+    ? allPinnedFiles.length > 0 
+    : (files.length > 0 || pinnedFiles.length > 0 || creatingFolder)
+
+  if (loading && !hasContent) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="flex items-center gap-2 text-neutral-400 dark:text-neutral-500">
