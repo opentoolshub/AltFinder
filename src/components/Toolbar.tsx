@@ -1,3 +1,5 @@
+import { forwardRef } from 'react'
+
 interface ToolbarProps {
   canGoBack: boolean
   canGoForward: boolean
@@ -40,7 +42,7 @@ const EyeSlashIcon = () => (
   </svg>
 )
 
-export default function Toolbar({
+const Toolbar = forwardRef<HTMLInputElement, ToolbarProps>(function Toolbar({
   canGoBack,
   canGoForward,
   onBack,
@@ -49,7 +51,7 @@ export default function Toolbar({
   onSearchChange,
   showHiddenFiles,
   onToggleHiddenFiles
-}: ToolbarProps) {
+}, ref) {
   return (
     <div className="h-12 flex items-center justify-between gap-4 px-4 bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-xl border-b border-neutral-200/60 dark:border-white/5 drag-region">
       {/* Navigation buttons - drag region excluded */}
@@ -101,6 +103,7 @@ export default function Toolbar({
             <SearchIcon />
           </span>
           <input
+            ref={ref}
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -111,4 +114,6 @@ export default function Toolbar({
       </div>
     </div>
   )
-}
+})
+
+export default Toolbar

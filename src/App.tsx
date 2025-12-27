@@ -59,6 +59,7 @@ function App() {
   const [isAllPinnedView, setIsAllPinnedView] = useState(false)
   const [allPinnedFiles, setAllPinnedFiles] = useState<{ file: FileInfo; sourceDir: string }[]>([])
   const fileListRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const loadIdRef = useRef<number>(0) // Track current load to cancel stale loads
   const directoryCacheRef = useRef<Map<string, { files: FileInfo[]; pins: string[]; timestamp: number }>>(new Map()) // Cache recent directories
   const CACHE_MAX_SIZE = 20
@@ -514,6 +515,10 @@ function App() {
         e.preventDefault()
         const allPaths = [...pinnedFiles, ...files].map(f => f.path)
         setSelectedFiles(new Set(allPaths))
+      } else if (isMeta && e.key === 'f') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
       }
     }
 
@@ -599,6 +604,7 @@ function App() {
       <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#1a1a1a]">
         {/* Toolbar */}
         <Toolbar
+          ref={searchInputRef}
           canGoBack={historyIndex > 0}
           canGoForward={historyIndex < history.length - 1}
           onBack={goBack}

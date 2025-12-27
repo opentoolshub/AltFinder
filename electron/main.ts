@@ -882,7 +882,11 @@ async function getFinderFavorites(): Promise<{ name: string; path: string }[]> {
   finderFavoritesLoading = true
 
   try {
-    const scriptPath = path.join(__dirname, '../scripts/read-finder-favorites.swift')
+    // In packaged app, scripts are unpacked outside the asar
+    let scriptPath = path.join(__dirname, '../scripts/read-finder-favorites.swift')
+    if (app.isPackaged) {
+      scriptPath = scriptPath.replace('app.asar', 'app.asar.unpacked')
+    }
     if (!existsSync(scriptPath)) {
       finderFavoritesLoading = false
       return []

@@ -24,6 +24,9 @@
       "dist-electron/**/*",
       "scripts/**/*"
     ],
+    "asarUnpack": [
+      "scripts/**/*"
+    ],
     "mac": {
       "icon": "public/icon-512.png",
       "category": "public.app-category.utilities",

@@ -23,10 +23,13 @@ A Finder alternative for macOS built with Electron, React, and TypeScript.
 | Delete | Cmd+Backspace |
 | Rename | Enter (with single selection) |
 | Select All | Cmd+A |
+| Search | Cmd+F |
 | Back | Cmd+[ |
 | Forward | Cmd+] |
 | Go Up | Cmd+Up |
 | New Folder | Cmd+Shift+N |
+| New Window | Cmd+N |
+| Show/Hide Hidden Files | Cmd+Shift+. |
 
 ## Running
 
