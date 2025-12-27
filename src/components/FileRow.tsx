@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 
 interface FileInfo {
   name: string
@@ -78,7 +78,7 @@ const PinIcon = () => (
   </svg>
 )
 
-export default function FileRow({
+const FileRow = memo(function FileRow({
   file,
   isSelected,
   isPinned,
@@ -194,4 +194,6 @@ export default function FileRow({
       </div>
     </div>
   )
-}
+})
+
+export default FileRow

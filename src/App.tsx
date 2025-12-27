@@ -142,9 +142,14 @@ function App() {
     }
   }, [currentPath, navigateTo])
 
+  const initialized = useRef(false)
+
   // Initialize
   useEffect(() => {
     const init = async () => {
+      if (initialized.current) return
+      initialized.current = true
+
       try {
         console.log('Initializing app...')
         if (!window.electron) {
@@ -169,7 +174,7 @@ function App() {
       }
     }
     init()
-  }, [loadFavorites, navigateTo])
+  }, []) // Empty dependency array - run once on mount
 
   const [loadingMore, setLoadingMore] = useState(false)
   const [totalItems, setTotalItems] = useState(0)
@@ -299,8 +304,6 @@ function App() {
     if (currentPath) {
       // Increment load ID immediately to cancel any in-flight loads
       loadIdRef.current++
-      // Show loading spinner for feedback
-      setLoading(true)
       // Load immediately
       loadDirectory(currentPath)
     }

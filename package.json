@@ -16,6 +16,14 @@
   },
   "build": {
     "appId": "com.jacobcole.altfinder",
+    "files": [
+      "dist/index.html",
+      "dist/assets/**/*",
+      "dist/icon*.png",
+      "dist/icon.svg",
+      "dist-electron/**/*",
+      "scripts/**/*"
+    ],
     "mac": {
       "icon": "public/icon-512.png",
       "category": "public.app-category.utilities",
