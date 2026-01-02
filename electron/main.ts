@@ -1096,16 +1096,20 @@ async function loadFinderFavorites(): Promise<{ name: string; path: string }[]> 
     if (app.isPackaged) {
       scriptPath = scriptPath.replace('app.asar', 'app.asar.unpacked')
     }
+    console.log('Loading favorites, script path:', scriptPath, 'exists:', existsSync(scriptPath))
     if (!existsSync(scriptPath)) {
+      console.log('Script not found, using defaults')
       return getDefaultFavorites()
     }
 
     const { stdout } = await execAsync(`swift "${scriptPath}"`, { timeout: 10000 })
+    console.log('Swift script returned:', stdout.length, 'bytes')
     const favorites = JSON.parse(stdout)
     // Filter out empty entries and special items
     cachedFinderFavorites = favorites.filter((f: { name: string; path: string }) =>
       f.name && f.path && !f.path.includes('.cannedSearch')
     )
+    console.log('Loaded', cachedFinderFavorites.length, 'favorites')
     return cachedFinderFavorites
   } catch (error) {
     console.error('Failed to read Finder favorites:', error)

@@ -71,8 +71,10 @@ function App() {
     setFavoritesLoading(true)
     setFavoritesError(null)
     try {
+      console.log('Calling getFinderFavorites...')
       const favorites = await window.electron.getFinderFavorites()
-      setFinderFavorites(favorites)
+      console.log('Received favorites:', favorites?.length, JSON.stringify(favorites))
+      setFinderFavorites(favorites || [])
     } catch (err) {
       console.error('Failed to load favorites:', err)
       setFavoritesError('Failed to load favorites')
