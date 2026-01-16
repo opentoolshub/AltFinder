@@ -42,10 +42,19 @@ class FinderFavoritesService: ObservableObject {
     }
 
     private func loadFinderFavorites() async -> [FavoriteItem] {
-        // Path to Finder favorites
-        let favoritesPath = NSHomeDirectory() + "/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.FavoriteItems.sfl3"
+        // Path to Finder favorites - try sfl4 first (macOS 26+), then sfl3 (older)
+        let basePath = NSHomeDirectory() + "/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.FavoriteItems"
+        let paths = [basePath + ".sfl4", basePath + ".sfl3"]
 
-        guard let data = FileManager.default.contents(atPath: favoritesPath) else {
+        var data: Data?
+        for path in paths {
+            if let fileData = FileManager.default.contents(atPath: path) {
+                data = fileData
+                break
+            }
+        }
+
+        guard let data = data else {
             return getDefaultFavorites()
         }
 
