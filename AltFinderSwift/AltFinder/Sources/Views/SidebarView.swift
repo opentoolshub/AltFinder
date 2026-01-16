@@ -2,47 +2,31 @@ import SwiftUI
 
 struct SidebarView: View {
     @EnvironmentObject var appState: AppState
-
-    private let favorites: [(String, URL, String)] = {
-        let fm = FileManager.default
-        var items: [(String, URL, String)] = []
-
-        // Home
-        items.append(("House", fm.homeDirectoryForCurrentUser, "Home"))
-
-        // Desktop
-        if let desktop = fm.urls(for: .desktopDirectory, in: .userDomainMask).first {
-            items.append(("display", desktop, "Desktop"))
-        }
-
-        // Documents
-        if let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
-            items.append(("doc.text", docs, "Documents"))
-        }
-
-        // Downloads
-        if let downloads = fm.urls(for: .downloadsDirectory, in: .userDomainMask).first {
-            items.append(("arrow.down.circle", downloads, "Downloads"))
-        }
-
-        // Applications
-        let apps = URL(fileURLWithPath: "/Applications")
-        if fm.fileExists(atPath: apps.path) {
-            items.append(("square.grid.2x2", apps, "Applications"))
-        }
-
-        return items
-    }()
+    @StateObject private var favoritesService = FinderFavoritesService.shared
 
     var body: some View {
         List(selection: Binding(
             get: { appState.currentPath },
             set: { if let url = $0 { appState.navigateTo(url) } }
         )) {
+            // Home - always show at top
+            Section("Home") {
+                NavigationLink(value: FileManager.default.homeDirectoryForCurrentUser) {
+                    Label("Home", systemImage: "house")
+                }
+            }
+
+            // Finder Favorites
             Section("Favorites") {
-                ForEach(favorites, id: \.1) { icon, url, name in
-                    NavigationLink(value: url) {
-                        Label(name, systemImage: icon)
+                if favoritesService.isLoading {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(0.7)
+                } else {
+                    ForEach(favoritesService.favorites) { favorite in
+                        NavigationLink(value: favorite.url) {
+                            Label(favorite.name, systemImage: favorite.icon)
+                        }
                     }
                 }
             }

@@ -21,6 +21,7 @@
 		012 /* FileRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112; };
 		013 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 113; };
 		014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 201; };
+		015 /* FinderFavoritesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 114; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +38,7 @@
 		111 /* FileListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileListView.swift; sourceTree = "<group>"; };
 		112 /* FileRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileRowView.swift; sourceTree = "<group>"; };
 		113 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		114 /* FinderFavoritesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderFavoritesService.swift; sourceTree = "<group>"; };
 		201 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		202 /* AltFinder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AltFinder.entitlements; sourceTree = "<group>"; };
 		300 /* AltFinder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AltFinder.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -86,8 +88,17 @@
 				G005 /* Models */,
 				G006 /* ViewModels */,
 				G007 /* Views */,
+				G008 /* Services */,
 			);
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		G008 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				114 /* FinderFavoritesService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		G005 /* Models */ = {
@@ -213,6 +224,7 @@
 				011 /* FileListView.swift in Sources */,
 				012 /* FileRowView.swift in Sources */,
 				013 /* SettingsView.swift in Sources */,
+				015 /* FinderFavoritesService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

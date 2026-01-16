@@ -34,7 +34,7 @@ struct FileListView: View {
                 Spacer()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
                         // Pinned section
                         if !viewModel.filteredPinnedItems.isEmpty {
                             SectionHeader(title: "Pinned")
@@ -86,7 +86,9 @@ struct FileListView: View {
                             .padding(.top, 60)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .background(Color(NSColor.controlBackgroundColor))
             }
         }
